@@ -1,7 +1,8 @@
 % 上层配置情况(决策变量:DG接入配电网的位置和容量)
 
 
-function [new_population, new_obj]= up_configuration(C_res,pk,g,b) 
+function [new_population, new_obj]= up_configuration(C_res,~,r,x,g,b,p_l) 
+% g b分别为电导 电纳
 
 % 参数设置
     pop_size = 20;       % 种群大小(初始化节点数量)
@@ -16,55 +17,75 @@ function [new_population, new_obj]= up_configuration(C_res,pk,g,b)
 
 % 参数大小设置(初始化变量)
     % LC 代指位置和容量
-    LC_wt = sdpvar(pop_size, 33); % 风机对应位置的容量
-    LC_pv = sdpvar(pop_size, 33); % 光伏对应位置的容量
+    % LC_wt = sdpvar(pop_size, 33); % 风机对应位置的容量
+    % LC_pv = sdpvar(pop_size, 33); % 光伏对应位置的容量
 
     % 光伏和风电出力
-    P_wt = sdpvar(pop_size, 25, 33);
-    P_pv = sdpvar(pop_size, 25, 33);
+    P_wt = sdpvar(25, 33, 24);
+    P_pv = sdpvar(25, 33, 24);
 
-    % 分布式电源的有功出力上限(某个场景的某个节点)
-    P_DG = sdpvar(pop_size, 25, 33);
+    % 分布式电源的有功出力上限
+    P_DG = sdpvar(25, 33, 24);
     P_DG_max = sdpvar(pop_size, 25, 33);
 
     % 不同场景下的节点电压
-    U = sdpvar(pop_size, 25, 33);
-    P = sdpvar(pop_size, 25, 33); % 场景s时流入节点i的有功功率和无功功率
-    Q = sdpvar(pop_size, 25, 33);
+    U = sdpvar(pop_size, 25, 33, 24);
+    P = sdpvar(pop_size, 25, 33, 24); 
+    Q = sdpvar(pop_size, 25, 33, 24);
 
     % 可转移负载功率
     P_dr = sdpvar(pop_size, 25, 33);
 
+    % 损失功率
+    P_loss = sdpvar(pop_size, 1, 25);
+
     % 下层目标函数
     f = sdpvar(pop_size, 1);
 
-
-    
+    % 场景s在时刻t从上级电网购买电力的有功功率
+    P_en = sdpvar(pop_size, 25, 24);
 
     obj= sdpvar(20, 2); % 不同种群的目标函数值
 
 
-    
+
     % 初始化种群
     % 光伏选址定容
     % 风力选址定容
     [LC_wt, LC_pv] = initialize_population(pop_size);
 
-        
-
+% 完成节点风电光伏的赋值
+for s = 1:25
+    for hour = 1:24
+        for i = 1:33
+            if i == 13 || i == 17 || i == 25
+                P_pv(s,i,hour) = C_res(s, hour);
+                P_wt(s,i,hour) = 0;
+            elseif i == 4 || i == 7 || i == 27
+                P_wt(s,i,hour) = C_res(s, hour+24);
+                P_pv(s,i,hour) = 0;
+            else
+                P_pv(s,i,hour) = 0;
+                P_wt(s,i,hour) = 0;
+            end
+        end
+    end
+end
+P_pv = value(P_pv); 
+P_wt = value(P_wt);
     % 下层优化情况
     for i = 1:pop_size
-        [P_wt(i,:,:), P_pv(i,:,:), P_DG(i,:,:), P_DG_max(i,:,:), U(i,:,:), P(i,:,:), Q(i,:,:), P_dr(i,:,:), f(i)] = dw_optimum_stand(LC_wt(i,:), LC_pv(i,:), C_res, pk, g, b); % 得到下层输出的参数
+        [t, U(i,:,:,:), P(i,:,:,:), Q(i,:,:,:), P_dr(i,:,:), f(i), P_en(i,:,:), P_loss(i,:,:)] = dw_optimum_stand(LC_wt(i,:), LC_pv(i,:), P_wt, P_pv, r, x, g, b, p_l); % 得到下层输出的参数
     end
- 
 
     % 进化循环
     population = [LC_wt, LC_pv];
+    size(P_en(1,:,:))
 
     for gen = 1:max_gen
         % 计算目标函数值
         for i = 1:pop_size
-            [obj(i)] = evaluate_population(pop_size, LC_wt, LC_pv, P_wt, P_pv, d, P_en, t, P_loss, P_dr);
+            [obj(i)] = evaluate_population(LC_wt(i,:), LC_pv(i,:), t, P_wt, P_pv, P_en(i,:,:), P_loss(i,:,:), P_dr(i,:,:), U(i,:,:,:));
         end
         % 非支配排序与拥挤度计算
         [fronts, rank] = non_dominated_sort(obj);

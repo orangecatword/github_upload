@@ -1,5 +1,6 @@
 % 接下来参数对接与归一化-实现了价格部分的调整
 % 问题2:如何计算某节点i在某场景s下的光伏/风电功率 已知不同时刻节点在某场景下的光伏/风电功率 -可以通过求取24h的平均值来解决问题
+% -新想法,为什么不直接把变量换成不同时刻节点在某场景下的光伏/风电功率,即维度扩展
 % 问题3:单个节点的光伏与风电容量限制分别为? -论文未给出, 后续也许可以自己设置
 % 问题4:某个场景下节点的实时电压如何计算 - 不同场景的不同节点求最值即可
 
@@ -36,17 +37,11 @@ kn=4;%循环次数
 %% 初始化参数
 mpc = IEEE33BW; %IEEE33标准节点系统
 
-% wind和pv都是不确定性变量d的初始值
-wind = mpc.wind; % 风电数据
-wind = wind/3; % 含3个风机
-wind = ones(3,1).*wind;
-
-pv = mpc.pv;%光伏数据,含3个
-pv = pv/3;
-pv = ones(3,1).*pv;
 
 % 负荷定义不确定性变量d的初始值
 pload = mpc.pload;% 负荷数据
+p_l = pload; % 将负荷的原始数据之后导入下层模型
+
 pload_prim = mpc.pload_prim/1000;%化为标幺值
 qload_prim = mpc.qload_prim/1000;
 a = 3.715;%单时段所有节点有功容量,MW
@@ -78,23 +73,13 @@ npv = 3; % 3个光伏
 
 % 先在main中初始化变量-最终都是要将这些内容放到上下层模型中
 % LC 代指位置和容量
-LC_wt = sdpvar(33, 1); % 风机对应位置的容量
+LC_wt = sdpvar(33, 1); % 风机对应位置的容量(装机容量)
 LC_pv = sdpvar(33, 1); % 光伏对应位置的容量
 
-% 节点的风电与光伏额定装机容量
-% P_wt_c = sdpvar(33, 1); 即为LC_wt
-% P_pv_c = sdpvar(33, 1); 即为LC_pv
-% P_DG_c = sdpvar(33, 1); LC_wt + LC_pv
-
-% 允许在节点安装的DG 风力 光伏最大容量
-P_DG_c_max = sdpvar(33, 1);
-P_wt_c_max = sdpvar(33, 1);
-P_pv_c_max = sdpvar(33, 1);
-
-% 节点的风电与光伏出力(某个场景的某个节点)
-P_wt = sdpvar(25, 33); 
-P_pv = sdpvar(25, 33);
-P_DG = sdpvar(25, 33);
+% 光伏和风电出力
+P_wt = sdpvar(25, 33, 24);
+P_pv = sdpvar(25, 33, 24);
+P_DG = sdpvar(25, 33, 24);
 
 % 分布式电源的有功出力上限(某个场景的某个节点)
 P_DG_max = sdpvar(25, 33);
@@ -102,7 +87,7 @@ P_DG_max = sdpvar(25, 33);
 % 实时电压
 V = sdpvar(25, 33, 24);
 
-% 
+% 25*33
 P = sdpvar(25, 33); % 场景s时流入节点i的有功功率和无功功率
 Q = sdpvar(25, 33);
 U = sdpvar(25, 33); % 场景s时流入节点i的电压
@@ -143,7 +128,7 @@ C_res = sdpvar(25, 48); % 场景总数为25,风光各占24h
 % t =  365 * pk 如果要是天数,还需考虑四舍五入- pk 为概率,t为天数 能不能通过加一个约束来解决 天数和为365 同时 t ≈ 365 * pk(不能差超过1天)
 
 % 导入的的因素是场景下光伏 风力出力值
-[new_population, new_obj] = up_configuration(C_res,pk,g,b);
+[new_population, new_obj] = up_configuration(C_res,pk,r,x,g,b,p_l);
 
 
 % 结果
@@ -160,9 +145,7 @@ P_pv = value(P_pv);
 
 
 
-%画图
-
-
+% 画图
 
 % 图2:三维电压分布图-展示各节点在24小时内的电压幅值时空分布
 figure;
