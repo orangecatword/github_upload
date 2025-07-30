@@ -17,8 +17,8 @@ function [new_population, new_obj]= up_configuration(C_res,~,r,x,g,b,p_l)
 
 % 参数大小设置(初始化变量)
     % LC 代指位置和容量
-    % LC_wt = sdpvar(pop_size, 33); % 风机对应位置的容量
-    % LC_pv = sdpvar(pop_size, 33); % 光伏对应位置的容量
+    LC_wt = sdpvar(pop_size, 33); % 风机对应位置的容量
+    LC_pv = sdpvar(pop_size, 33); % 光伏对应位置的容量
 
     % 光伏和风电出力
     P_wt = sdpvar(25, 33, 24);
@@ -32,18 +32,28 @@ function [new_population, new_obj]= up_configuration(C_res,~,r,x,g,b,p_l)
     U = sdpvar(pop_size, 25, 33, 24);
     P = sdpvar(pop_size, 25, 33, 24); 
     Q = sdpvar(pop_size, 25, 33, 24);
+    U_trans = sdpvar(25, 33, 24);
+    P_trans = sdpvar(25, 33, 24);
+    Q_trans = sdpvar(25, 33, 24);
+
+
 
     % 可转移负载功率
-    P_dr = sdpvar(pop_size, 25, 33);
+    P_dr = sdpvar(pop_size, 25, 33, 24);
+    P_dr_trans = sdpvar(25, 33, 24);
+
+    % 场景s在时刻t从上级电网购买电力的有功功率
+    P_en = sdpvar(pop_size, 25, 33, 24);
+    P_en_trans = sdpvar(25, 33, 24);
 
     % 损失功率
-    P_loss = sdpvar(pop_size, 1, 25);
+    P_loss = sdpvar(pop_size, 25);
+    P_loss_trans = sdpvar(1,25);
 
     % 下层目标函数
     f = sdpvar(pop_size, 1);
 
-    % 场景s在时刻t从上级电网购买电力的有功功率
-    P_en = sdpvar(pop_size, 25, 24);
+    
 
     obj= sdpvar(20, 2); % 不同种群的目标函数值
 
@@ -53,29 +63,13 @@ function [new_population, new_obj]= up_configuration(C_res,~,r,x,g,b,p_l)
     % 光伏选址定容
     % 风力选址定容
     [LC_wt, LC_pv] = initialize_population(pop_size);
+    % 计算比例,因为在其他条件固定的情况下,光伏风电出力与其容量成正比
 
-% 完成节点风电光伏的赋值
-for s = 1:25
-    for hour = 1:24
-        for i = 1:33
-            if i == 13 || i == 17 || i == 25
-                P_pv(s,i,hour) = C_res(s, hour);
-                P_wt(s,i,hour) = 0;
-            elseif i == 4 || i == 7 || i == 27
-                P_wt(s,i,hour) = C_res(s, hour+24);
-                P_pv(s,i,hour) = 0;
-            else
-                P_pv(s,i,hour) = 0;
-                P_wt(s,i,hour) = 0;
-            end
-        end
-    end
-end
-P_pv = value(P_pv); 
-P_wt = value(P_wt);
-    % 下层优化情况
+
+    size(LC_wt(1,:))
+    % 下层优化情况-检查维度问题
     for i = 1:pop_size
-        [t, U(i,:,:,:), P(i,:,:,:), Q(i,:,:,:), P_dr(i,:,:), f(i), P_en(i,:,:), P_loss(i,:,:)] = dw_optimum_stand(LC_wt(i,:), LC_pv(i,:), P_wt, P_pv, r, x, g, b, p_l); % 得到下层输出的参数
+        [t, U_trans, P_trans, Q_trans, P_dr_trans, f(i), P_en_trans, P_loss_trans] = dw_optimum_stand(LC_wt(i,:), LC_pv(i,:), C_res, r, x, g, b); % 得到下层输出的参数
     end
 
     % 进化循环

@@ -492,11 +492,12 @@ toc
 % d.网络损失费用
 % 公式表示对所有场景的网络损失费用进行求和,其中包含损失系数(c_loss)、损失功率(P_loss)和场景s对应天数(t)
 tic
+P_loss_val = zeros(1,25);  % 创建临时数值数组
 Rij_matrix = repmat(reshape(Rij, 1, 32), [25, 1, 24]); % 扩展电阻维度
 for s = 1:25  % 遍历所有场景
     for k = 1:32
         for hour = 1:24
-            P_loss(s) = P_loss(s)+Iij(s,k,hour)*Rij_matrix(s,k,hour);
+            P_loss(s,k,hour) = Iij(s,k,hour)*Rij_matrix(s,k,hour)
         end
     end
 end
@@ -533,7 +534,7 @@ C_om
 C_en
 C_loss
 C_dr
-f = C_om + C_en + C_loss + C_dr;
+f = C_om + C_en + C_dr;
 
 % 求解
 tic
