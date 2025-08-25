@@ -5,6 +5,7 @@
 % 问题4:某个场景下节点的实时电压如何计算 - 不同场景的不同节点求最值即可-已实现
 % 问题5:实现初始化时生成容量的随机性-把分布式电源出力和容量联系了起来
 % 问题6：如果初始值不满足约束条件会怎么办？
+% 问题7：论文还是缺少一些参数和约束条件
 
 
 % 参考文献:英_配电网中多目标分布式发电分层最优规划:改进的白鲸优化算法
@@ -41,24 +42,23 @@ mpc = IEEE33BW; %IEEE33标准节点系统
 
 
 % 负荷定义不确定性变量d的初始值
-pload = mpc.pload;% 负荷数据
-p_l = pload; % 将负荷的原始数据之后导入下层模型
+% pload = mpc.pload;% 负荷数据
+% p_l = pload; % 将负荷的原始数据之后导入下层模型
 
-pload_prim = mpc.pload_prim/1000;%化为标幺值
-qload_prim = mpc.qload_prim/1000;
-a = 3.715;%单时段所有节点有功容量,MW
-b = 2.3;%单时段所有节点无功容量,MW
-pload = pload/a;%得到各个时段与单时段容量的比例系数
-qload = pload/b;%假设有功负荷曲线与无功负荷曲线相同
-pload = pload_prim*pload;%得到33*24的负荷值,每一个时间段每个节点的负荷
-qload = qload_prim*qload;
-pload = pload(1:32,:);   
-qload = qload(1:32,:);
-
-
+% pload_prim = mpc.pload_prim/1000;%化为标幺值
+% qload_prim = mpc.qload_prim/1000;
+% a = 3.715;%单时段所有节点有功容量,MW
+% b = 2.3;%单时段所有节点无功容量,MW
+% pload = pload/a;%得到各个时段与单时段容量的比例系数
+% qload = pload/b;%假设有功负荷曲线与无功负荷曲线相同
+% pload = pload_prim*pload;%得到33*24的负荷值,每一个时间段每个节点的负荷
+% qload = qload_prim*qload;
+% pload = pload(1:32,:);   
+% qload = qload(1:32,:);
 
 branch = mpc.branch;
 branch(:,3) = branch(:,3)*1/(12.66^2);%求阻抗标幺值 论文中电压压基准值选择为12.66kV
+branch(:,3)
 r = real(branch(:,3));
 x = imag(branch(:,3));
 

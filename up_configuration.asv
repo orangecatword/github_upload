@@ -1,6 +1,7 @@
 % 上层配置情况(决策变量:DG接入配电网的位置和容量)
 
-function [new_population, new_obj]= up_configuration(C_res,pk,r,x,g,b,pload,qload,branch,pv,wt) 
+
+function [new_population, new_obj]= up_configuration(C_res,~,r,x,g,b,p_l) 
 % g b分别为电导 电纳
 
 % 参数设置
@@ -9,6 +10,7 @@ function [new_population, new_obj]= up_configuration(C_res,pk,r,x,g,b,pload,qloa
     var_num = 62;        % 变量维度
     obj_num = 2;         % 上层目标函数个数.包括年综合成本最小,电压偏差总量最小
 
+    
     % 可调整参数
     pc = 0.9;            % 交叉概率
     pm = 1/var_num;      % 变异概率
@@ -34,13 +36,15 @@ function [new_population, new_obj]= up_configuration(C_res,pk,r,x,g,b,pload,qloa
     P_trans = sdpvar(25, 33, 24);
     Q_trans = sdpvar(25, 33, 24);
 
+
+
     % 可转移负载功率
     P_dr = sdpvar(pop_size, 25, 33, 24);
     P_dr_trans = sdpvar(25, 33, 24);
 
     % 场景s在时刻t从上级电网购买电力的有功功率
-    P_en = sdpvar(pop_size, 25, 1, 24);
-    P_en_trans = sdpvar(25, 1, 24);
+    P_en = sdpvar(pop_size, 25, 33, 24);
+    P_en_trans = sdpvar(25, 33, 24);
 
     % 损失功率
     P_loss = sdpvar(pop_size, 25);
@@ -48,21 +52,29 @@ function [new_population, new_obj]= up_configuration(C_res,pk,r,x,g,b,pload,qloa
 
     % 下层目标函数
     f = sdpvar(pop_size, 1);
-    f_trans = sdpvar(1, 1);
+
+    
 
     obj= sdpvar(20, 2); % 不同种群的目标函数值
 
+
+
     % 初始化种群
-    % 光伏,风力选址定容
+    % 光伏选址定容
+    % 风力选址定容
     [LC_wt, LC_pv] = initialize_population(pop_size);
     % 计算比例,因为在其他条件固定的情况下,光伏风电出力与其容量成正比
 
+
+    size(LC_wt(1,:))
+    % 下层优化情况-检查维度问题
     for i = 1:pop_size
-        [t, U_trans, P_trans, Q_trans, P_dr_trans, f_trans, P_en_trans, P_loss_trans] = dw_optimum_stand(LC_wt(i,:), LC_pv(i,:), C_res, r, x, g, b, pload, qload,branch,pv,wt); % 得到下层输出的参数
+        [t, U_trans, P_trans, Q_trans, P_dr_trans, f, P_en_trans, P_loss_trans] = dw_optimum_stand(LC_wt(i,:), LC_pv(i,:), C_res, r, x, g, b); % 得到下层输出的参数
     end
 
     % 进化循环
     population = [LC_wt, LC_pv];
+    size(P_en(1,:,:))
 
     for gen = 1:max_gen
         % 计算目标函数值

@@ -1,15 +1,17 @@
-% 输出值都是计算目标函数需要的参数值
-% 大多数变量都需要扩展维度 在时刻和场景下 包括支路功率 电压等
-% 位置变量U P Q Pij Qij Sij 不仅要找到约束关系,还要明白它们之间如何计算-也包括出现在约束条件中的所有变量都得有个关系式囊括其中-还可能变得维度是 P_en
-% 二阶锥约束-得到电流 支路功率与电压的关系
-% 已有潮流约束-节点电压 节点功率的关系---结合二阶锥约束,应该能把这三者都解出来
-% 损失功率计算-I^2*R
-% 功率约束的两个经典公式-支路功率,支路电流与节点功率的关系;节点功率与 分布式电源出力 负荷出力 购电功率以及节点可转移功率(想法:应该有正有负)的关系
+% 2025.8.21后一些思路:
+% 1.简化了节点的可转移负荷功率;
+% 4.参考熊壮壮的主程序约束-若按熊壮壮程序改 定义的变量大小应该 25 33 24变为33 25 24;以及定义upstream;
 
-% 进行凸松弛,分别将电压和电流的值求平方
-% 运算速度过慢 需要改变多层嵌套方式
-function [t, U, P, Q, P_L, P_dr, f, P_en, P_loss] = dw_optimum_stand(LC_wt, LC_pv, C_res, r, x, g, b)
+% 当在上层模型中完成选址定容后,下层模型的变量还剩下 可转移负荷出力以及上级电网给首端节点的功率
+function [t, U, P, Q, P_dr_out, f, P_en, P_loss] = dw_optimum_stand(LC_wt, LC_pv, C_res, r, x, g, b, pload, qload,branch,pv,wt)
 
+size(LC_wt) % 1    33
+size(C_res) % 25    48
+size(r) % 32     1
+size(pload) % 33    24
+% 目前不为0的变量:输出的变量,P_wt,P_pv,P_DG,theta_ij,t,d;把剩下的变量和约束都列出来 看看是不是约束少了
+% 目前为0的变量:U, P, Q(Q第33列有非法值), P_L, P_dr, f, P_en, P_loss,Pij,Qij,Sij,Iij
+% 至2025.8.19 不为0的变量增加P_L, P_dr,P_en
 yalmip('clear') % 通过此方法,能加速求解过程
 
 % 初始化变量
@@ -21,426 +23,166 @@ N_n = 33;
 % 分时电价
 d = [0.2,0.2,0.2,0.2,0.2,0.2,0.2,0.4,0.4,0.4,0.45,0.56,0.56,0.45,0.45,0.4,0.56,0.4,0.45,0.45,0.45,0.4,0.4,0.2]; % 电价 单位元/1KWh
 
+% 天数约束-由pk转为t; pk*365 再四舍五入，这里省去约束过程,即不需要pk参数了
+t = [10 10 10 11 15 25 25 25 27 38 10 10 10 11 16 9 9 9 9 13 11 12 11 12 17]; % 不同场景的运行天数
+
 % 初始化变量
 % 节点电压的平方
-U = sdpvar(25,33,24); % 不同场景下的节点电压
-% 二阶锥约束的计算电压
-U_cone = sdpvar(25,32,24); % 不同场景下的节点电压
+U = sdpvar(33,24,25,'full'); % 不同场景下的节点电压
 
 % 节点功率
-P = sdpvar(25, 33, 24); 
-Q = sdpvar(25, 33, 24);
+P = sdpvar(33, 24, 25, 'full'); 
+Q = sdpvar(33, 24, 25, 'full');
 
 % 支路功率
-Pij = sdpvar(25, 32, 24);
-Qij = sdpvar(25, 32, 24);
+Pij = sdpvar(32, 24, 25, 'full');
+Qij = sdpvar(32, 24, 25, 'full');
 % 支路视在功率
-Sij = sdpvar(25, 32, 24); 
+Sij = sdpvar(32, 24, 25, 'full'); 
 % 支路电流的平方
-Iij = sdpvar(25, 32, 24); 
+Iij = sdpvar(32, 24, 25, 'full'); 
 
 Rij = r; % 电阻
 Xij = x; % 电抗
-Gij = g; % 电导
-Bij = b; % 电纳
-theta_ij = sdpvar(32, 1);
-theta_ij = atan2(b, g); % 角度,用反正切函数计算
-size(Rij)
 
 % 光伏和风电出力
-P_wt = sdpvar(25, 33, 24);
-P_pv = sdpvar(25, 33, 24);
+P_wt = sdpvar(33, 24, 25, 'full');
+P_pv = sdpvar(33, 24, 25, 'full');
 % 分布式电源的有功出力
-P_DG = sdpvar(25, 33, 24);
+P_DG = sdpvar(33, 24, 25, 'full');
 % 光伏风电出力与其容量成比
 ratio_pv = zeros(33, 1);
 ratio_wt = zeros(33, 1);
 
 % 分布式电源的切削率
-omega_DG = sdpvar(25, 33, 24);
+omega_DG = sdpvar(33, 24, 25, 'full');
 
 % 节点负荷功率
-P_L = sdpvar(25, 33, 24);
-% p_l
-% p_l = repmat(p_l, 25, 1);
-% p_l
-% size(P_L)
-% size(p_l)
-% P_L(:,:,1) = p_l;
+P_L = repmat(reshape(pload, [33,24,1]), [1,1,25]);
+Q_L = repmat(reshape(qload, [33,24,1]), [1,1,25]);
 
 % 可转移负载功率 -是节点i在场景s下可转移负荷的总量
-P_dr = sdpvar(25, 33, 24);
+P_dr_out = sdpvar(33, 24, 25, 'full'); % 转移出的功率
+P_dr_in = sdpvar(33, 24, 25, 'full'); % 转移入的功率
+P_dr_sum = sdpvar(33, 25, 'full'); % 24时刻中正向可转移负荷之和
+% 可转移负荷状态
+u_out = binvar(33, 24, 25,'full');% 高峰转出
+u_in = binvar(33, 24, 25,'full');% 低峰转入
 
-% 场景s在时刻t从上级电网购买电力的有功功率
-P_en = sdpvar(25, 33, 24); 
+% 场景s在时刻t从上级电网购买电力的有功功率-其实只是上级电网传到了33节点,大小应改变
+P_en = sdpvar(1, 24, 25, 'full'); 
 
 % 损失功率-场景s下的总网络损耗功率
-P_loss = sdpvar(1, 25);
+P_loss = sdpvar(1, 25,'full');
+P_loss_big = sdpvar(32, 24, 25, 'full');
 
-% 定义节点连接关系(示例,需根据实际拓扑调整)
-branches = {
-    33, 1;
-    1, 2;
-    2, 3;
-    3, 4;
-    4, 5;
-    5, 6;
-    6, 7;
-    7, 8;
-    8, 9;
-    9, 10;
-    10, 11;
-    11, 12;
-    12, 13;
-    13, 14;
-    14, 15;
-    15, 16;
-    16, 17;
-    1, 18
-    18, 19;
-    19, 20;
-    20, 21;
-    2, 22;
-    22, 23;
-    23, 24;
-    5, 25;
-    25, 26;
-    26, 27;
-    27, 28;
-    28, 29;
-    29, 30;
-    30, 31;
-    31, 32;
-};
+% 目标函数
+f = sdpvar(1, 1);
 
+% 熊壮壮
+% 网络拓扑构建
+nb = 33;%节点数
+nl = 32;%支路数
+upstream = zeros(nb,nl);
+dnstream = zeros(nb,nl);
+
+% 为什么是从1到32 i到i本身值为1呢
+for i = 1:nl
+    upstream(i,i) = 1;
+end
+
+for i=[1:16,18:20,22:23,25:31] % 即存在子节点的节点集
+    dnstream(i,i+1) = 1;
+end
+
+% 分支支路
+dnstream(1,18) = 1;
+dnstream(2,22) = 1;
+dnstream(5,25) = 1;
+dnstream(33,1) = 1;
 
 % 完成节点风电光伏的赋值
 tic
 for i = 1:33
     if i == 13 || i == 17 || i == 25
-        ratio_wt(i) = LC_wt(i)/sum(LC_wt); % 计算风电节点的比例
+        ratio_wt(i) = LC_wt(i)/1000; % LC_wt(i)/sum(LC_wt)*sum(LC_wt)/1000-计算风电节点的比例乘以容量的基准值
+        % ratio_wt(i) = 1;
     elseif i == 4 || i == 7 || i == 27
         ratio_pv(i) = LC_pv(i)/sum(LC_pv); % 计算光伏节点的比例
+        % ratio_pv(i) = 1;
     end
 end
 
-
-% for s = 1:25
-%     for hour = 1:24
-%         for i = 1:33
-%             P_wt(s,i,hour) = C_res(s, hour+24)*3*ratio_wt(i);
-%             P_pv(s,i,hour) = C_res(s, hour)*3*ratio_pv(i);
-%         end
-%     end
-% end
 % 风电功率分配
-size(reshape(repmat(C_res(:,25:48), [1,33]), [25,33,24]))
-size(repmat(reshape(ratio_wt,1,33,1), [25,1,24]))
+% size(reshape(repmat(C_res(:,25:48)', [33,1]), [33,24,25]))
+% size(repmat(reshape(ratio_wt,33,1,1), [1,24,25]))
+% P_wt = 3*reshape(repmat(C_res(:,25:48)', [33,1]), [33,24,25]).*repmat(reshape(ratio_wt,33,1,1), [1,24,25]);
 
-P_wt = 3*reshape(repmat(C_res(:,25:48), [1,33]), [25,33,24]).*repmat(reshape(ratio_wt,1,33,1), [25,1,24]);
 % 光伏功率分配
-P_pv = 3*reshape(repmat(C_res(:,1:24), [1,33]), [25,33,24]) .* repmat(reshape(ratio_pv,1,33,1), [25,1,24]);
+% P_pv = 3*reshape(repmat(C_res(:,1:24), [1,33]), [25,33,24]) .* repmat(reshape(ratio_pv,1,33,1), [25,1,24]);
+% P_pv = reshape(repmat(C_res(:,1:24)', [33,1]), [33,24,25]).*repmat(reshape(ratio_pv,33,1,1), [1,24,25])
+% 
+% P_pv = repmat(reshape(pv, [1,24,1]), [33,1,25]).*repmat(reshape(ratio_pv,33,1,1), [1,24,25]);
+% P_wt = repmat(reshape(wt, [1,24,1]), [33,1,25]).*repmat(reshape(ratio_wt,33,1,1), [1,24,25]);
+size(reshape(repmat(C_res(:,1:24)', [33,1]), [33,24,25]))
+size(repmat(reshape(ratio_pv,33,1,1), [1,24,25]))
+P_pv = reshape(repmat(C_res(:,1:24)', [33,1]), [33,24,25]).*repmat(reshape(ratio_pv,33,1,1), [1,24,25]);
+P_wt = reshape(repmat(C_res(:,25:48)', [33,1]), [33,24,25]).*repmat(reshape(ratio_wt,33,1,1), [1,24,25]);
 toc
-
-% 节点风电光伏赋值简化版
-% 预计算风电和光伏的比例
-% tic
-% wt_nodes = [13, 17, 25];
-% pv_nodes = [4, 7, 27];
-% 
-% % 计算风电节点比例
-% ratio_wt(wt_nodes) = LC_wt(wt_nodes)/sum(LC_wt);
-% % 计算光伏节点比例
-% ratio_pv(pv_nodes) = LC_pv(pv_nodes)/sum(LC_pv);
-% 
-% % 风电计算
-% P_wt(:,wt_nodes,:) = repmat(C_res(:,25:48)*3, [1,length(wt_nodes),1]) .* reshape(ratio_wt(wt_nodes)',1,[],1);
-% 
-% % 光伏计算
-% P_pv(:,pv_nodes,:) = repmat(C_res(:,1:24)*3, [1,length(pv_nodes),1]) .* reshape(ratio_pv(pv_nodes)',1,[],1);
-% toc
 
 % 限制条件
     cv = [];
-   
-    % 0.最最重要的风电和光伏出力约束
-    tic
-    % 维度扩展
-    LC_wt_expanded = repmat(LC_wt, [25, 1, 24]);
-    LC_pv_expanded = repmat(LC_pv, [25, 1, 24]);
+
+    U(33,:,:) = 1.03 ^2; % 首端节点电压标幺值
+    % 2.节点电压约束(标幺值 是已经除以12.66kv的结果)-修改U的限制值后 变量无解 所以还是约束公式取值的问题
     cv = [cv;
-        P_wt >= 0
-        P_pv >= 0
-        P_wt <= LC_wt_expanded
-        P_pv <= LC_pv_expanded
-        ];
-    toc
+    U <= 1.1025; %1.05平方1.1025  
+    U >= 0.9025 %0.95平方0.9025
+    ];
 
-    % 2.节点电压约束(标幺值 是已经除以12.66kv的结果)
-    tic
+    cv = [cv, 0 <= Iij,Iij <= 6];%基于熊壮壮程序给电流一个约束
+
+    % 7.可转移负荷量约束-可转移负荷是在不同时刻的负荷调动-节点t时刻可转移负荷量为正值,代表节点要在t时刻的原本负荷量减去可转移负荷量
+    % 可转移负荷状态约束
     cv = [cv;
-    % U(s,i) <= U_i_max
-    % U(s,i) >= U_i_min
-    % U <= 1.05
-    % U >= 0.95
-    % 若不除以标幺值
-    U <= (1.05 * 12.66)^2;  % 13.293 kV
-    U >= (0.95 * 12.66)^2;  % 12.027 kV
-    ]; 
-    toc
-
-    % 3.功率平衡约束 - 有一个循环的 i Ns
-    % 导纳值可以计算出
-    % theta_ij(s)表示阻抗角
-
-    % 3.1 潮流约束
-    % for hour = 1:24
-    %     for s = 1:N_s
-    %         for i = 1:N_n
-    %     % 有无功功率平衡约束
-    %         sum_P = 0;
-    %         sum_Q = 0;
-    %         for k = 1:N_n-1
-    %             j = branches{k, 2};
-    %             % if j == i
-    %                 % sum_P = sum_P + U(s,branches{k,1}) * (Gij(k) * cos(theta_ij(k)) + Bij(k) * sin(theta_ij(k)));
-    %                 % sum_Q = sum_Q + U(s,branches{k,1}) * (Gij(k) * sin(theta_ij(k)) - Bij(k) * cos(theta_ij(k)));
-    %             if branches{k,1} == i
-    %                 sum_P = sum_P + U(s,branches{k,2},hour) * (Gij(k) * cos(theta_ij(k)) + Bij(k) * sin(theta_ij(k)));
-    %                 sum_Q = sum_Q + U(s,branches{k,2},hour) * (Gij(k) * sin(theta_ij(k)) - Bij(k) * cos(theta_ij(k)));
-    %             end
-    %         end
-    %         cv = [cv; U(s,i,hour) * sum_P == P(s,i,hour)];
-    %         cv = [cv, U(s,i,hour) * sum_Q == Q(s,i,hour)];
-    %         end
-    %     end
-    % end
+    u_out + u_in <=1 % 可转移负荷状态约束
+    sum(P_dr_out,2) - sum(P_dr_in,2) == 0;
+    P_dr_out >= 0;
+    P_dr_out <= u_out*37.15;
+    P_dr_in >= 0;
+    P_dr_in <= u_in*37.15
+    ];
     
-    % 3.1 电压潮流约束(凸松弛)
-    % 预计算所有支路的三角函数值
+    %% 3.熊壮壮版的潮流约束
+    %% 潮流约束-判断公式具体是否正确
+    % 节点净负荷计算公式
+    % 省去了拓扑结构,仅用两行公式总结
+    for j=1:25
+        P(:,:,j) = upstream*Pij(:,:,j) - upstream*(Iij(:,:,j).*(r*ones(1,24))) - dnstream*Pij(:,:,j);
+        Q(:,:,j) = upstream*Qij(:,:,j) - upstream*(Iij(:,:,j).*(x*ones(1,24))) - dnstream*Qij(:,:,j);
+    end
+    cv = [cv, Q == Q_L]; % 和大多数论文的约束公式对比,等式右侧整体加了个负号
+    for j = 1:33
+            if j ~= 33 % 若非平衡节点
+                cv = [cv, P(j,:,:) == -(P_L(j,:,:) + P_dr_in(j,:,:) - P_dr_out(j,:,:) - P_pv(j,:,:)- P_wt(j,:,:))]; % 和大多数论文的约束公式对比,等式右侧整体加了个负号
+            else
+                cv = [cv, P(j,:,:) == -(P_L(j,:,:) + P_dr_in(j,:,:) - P_dr_out(j,:,:) - P_pv(j,:,:)- P_wt(j,:,:) - P_en(1,:,:))]; % 和大多数论文的约束公式对比,等式右侧整体加了个负号
+            end
+    end
+    % 电压约束公式
     tic
-    Rij_expanded = repmat(reshape(r, 1, 32), [25, 1, 24]); % 电阻矩阵扩展到(25,32,24)
-    Xij_expanded = repmat(reshape(x, 1, 32), [25, 1, 24]); % 电抗矩阵扩展到(25,32,24)
-
-    for k = 1:N_n-1
-        i = branches{k,1};
-        j = branches{k,2};
-        cv = [cv;
-        U(:,j,:) == U(:,i,:) - 2*(Rij_expanded(:,k,:).*Pij(:,k,:) + Xij_expanded(:,k,:).*Qij(:,k,:)) + (r(k)^2 + x(k)^2).*Iij(:,k,:)];
+    for j =1:25
+        cv = [cv, U(branch(:,2),:,j) == U(branch(:,1),:,j) - 2*(r*ones(1,24)).*Pij(:,:,j) - 2*(x*ones(1,24)).*Qij(:,:,j) + ((r.^2+x.^2)*ones(1,24)).*Iij(:,:,j)];
+        % cv = [cv, U(branch(:,1),:,j).*Iij(:,:,j) >= Pij(:,:,j).^2 + Qij(:,:,j).^2]; % 对熊壮壮论文(4-6)进行锥松弛
+        % cv = [cv, 7 <= Pij(:,:,j).^2 + Qij(:,:,j).^2]; % 视在功率约束 7为标幺值
+        Pij_vec = reshape(Pij, [], 1);
+        Qij_vec = reshape(Qij, [], 1);
+        Iij_vec = reshape(Iij, [], 1);
+        U_vec = reshape(U(branch(:,2),:,:), [], 1);
+        cv = [cv; norm([2*Pij_vec; 2*Qij_vec; Iij_vec-U_vec]) <= Iij_vec+U_vec];
+        cv = [cv; cone([Pij_vec; Qij_vec], 7000)];
     end
     toc
-
-    % 3.2 无功功率的潮流等式
-    % for hour = 1:24
-    %     for s = 1:N_s
-    %         for j = 1:N_n
-    %             % 计算流入节点j的净无功功率
-    %             sum_Q_in = 0;
-    %             sum_Q_out = 0;
-    % 
-    %             for k = 1:32
-    %                 if branches{k,2} == j
-    %                     sum_Q_in = sum_Q_in + (Qij(s,k,hour) - Xij(k)*Iij(s,k,hour)^2);
-    %                 end
-    %                 if branches{k,1} == j
-    %                     sum_Q_out = sum_Q_out + Qij(s,k,hour);
-    %                 end
-    %             end
-    %             cv = [cv; 
-    %             sum_Q_out - sum_Q_in == Q(s,j,hour)
-    %             ];
-    %         end
-    %     end
-    % end
-
-    % 3.2 有无功功率的潮流等式（凸松弛）
-    % 预计算节点连接关系
-    tic
-    node_in = cell(N_n-1,1);
-    node_out = cell(N_n-1,1);
-    branches = cell2mat(branches); 
-    for k = 1:32
-        j = branches(k,2);
-        node_in{j} = find(branches(:,2) == j);  % 流入节点j的支路索引-流入的只可能有一个节点
-        node_out{j} = find(branches(:,1) == j); % 流出节点j的支路索引
-        b = node_out{j}
-        if ~isempty(node_out{j})
-        cv = [cv;
-        sum(Qij(:,j,:) - Xij_expanded(:,j,:).*Iij(:,j,:), 2) == sum(Qij(:,node_out{j},:), 2) + Q(:,j,:);
-        sum(Pij(:,j,:) - Rij_expanded(:,j,:).*Iij(:,j,:), 2) == sum(Pij(:,node_out{j},:), 2) + P(:,j,:)];
-        else
-        cv = [cv;
-        sum(Qij(:,j,:) - Xij_expanded(:,j,:).*Iij(:,j,:), 2) == Q(:,j,:);
-        sum(Pij(:,j,:) - Rij_expanded(:,j,:).*Iij(:,j,:), 2) == P(:,j,:)];
-        end
-    end
-    toc
-    
-    % 3.3 有功功率的潮流等式
-    % P_DG = P_wt + P_pv;
-    % for hour = 1:24
-    %     for s = 1:N_s
-    %         for j = 1:N_n
-    %             % 计算流入节点j的净有功功率
-    %             sum_P_in = 0;
-    %             sum_P_out = 0;
-    % 
-    %             % 计算∑[P_ij - R_ij*I_ij^2]
-    %             for k = 1:32
-    %                 if branches{k,2} == j
-    %                     sum_P_in = sum_P_in + (Pij(s,k,hour) - Rij(k)*Iij(s,k,hour)^2);
-    %                 end
-    %                 if branches{k,1} == j
-    %                     sum_P_out = sum_P_out + Pij(s,k,hour);
-    %                 end
-    %             end
-    %             if j == 33 % 假设节点33是连接上级电网的节点
-    %             % 节点j的有功功率平衡约束
-    %             cv = [cv; 
-    %                 sum_P_out - sum_P_in == P(s,j,hour);
-    %                 P(s,j,hour) == P_DG(s,j,hour) - P_L(s,j,hour) + P_en(s,j,hour) - P_dr(s,j,hour)
-    %             ];
-    %             else
-    %             cv = [cv; 
-    %                 sum_P_out - sum_P_in == P(s,j,hour);
-    %                 P(s,j,hour) == P_DG(s,j,hour) - P_L(s,j,hour) - P_dr(s,j,hour)
-    %             ];
-    %             end
-    %         end
-    %     end
-    % end
-
-    % 3.3 节点接入的各个功率等式
-    tic
-    P_DG = P_wt + P_pv;
-    % 计算所有节点的净有功功率
-    for j = 1:N_n
-        if j ~= 33 % 若非平衡节点
-            cv = [cv; 
-                 P(:,j,:) == P_DG(:,j,:) - P_L(:,j,:) - P_dr(:,j,:)
-                 ];
-        else
-            cv = [cv;
-                 P(:,j,:) == P_DG(:,j,:) - P_L(:,j,:) + P_en(:,j,:)  - P_dr(:,j,:)
-                 ];
-        end
-    end
-    toc
-
-    % 3.4 二阶锥约束
-    tic
-    for k = 1:32  % 32条支路
-        i = branches(k,1);  % 支路起始节点
-        U_cone(:,k,:) = U(:,i,:);
-    end
-    Pij_vec = reshape(Pij, [], 1);
-    Qij_vec = reshape(Qij, [], 1);
-    Iij_vec = reshape(Iij, [], 1);
-    U_cone_vec = reshape(U_cone, [], 1);
-    % cv = [cv, cone([2*Pij_vec; 2*Qij_vec; Iij_vec-U_cone_vec], Iij_vec+U_cone_vec)];
-    cv = [cv, norm([2*Pij_vec; 2*Qij_vec; Iij_vec-U_cone_vec]) <= Iij_vec+U_cone_vec];
-    toc
-
-    % 较复杂的程序
-    % for hour = 1:24
-    %     for s = 1:25
-    %         for k = 1:32  % 32条支路
-    %             i = branches{k,1};  % 支路起始节点
-    %             cv = [cv;
-    %                  cone([2*Pij(s,k,hour); 2*Qij(s,k,hour); Iij(s,k,hour)-U_cone(s,k,hour)], Iij(s,k,hour)+U_cone(s,k,hour))];
-    %             ];
-    %         end
-    %     end
-    % end
-    
-   
-    
-
-
-    % 4.支路容量约束
-    % Sij(j)和S_max(j) j分别表示线路j的视在功率及其上限(单位:MVA)-变成kVA后乘1000
-    % 修改数据格式 或者放在最上面赋值即可
-    tic
-    theta_ij_expanded = repmat(reshape(theta_ij, [1, 32, 1]), [25, 1, 24]);
-    Sij = Pij .* (1./(cos(theta_ij_expanded) * 1000));
-    % Sij = Pij./(cos((theta_ij_expanded)) * 1000);
-    cv = [cv; 
-    % Sij(j) <= S_max(j)
-    Sij <= 7000;
-    Sij >= 0;
-    ];  
-    toc
-
-    % 6.DG运行约束
-    % P_DG: 节点i在场景s下的有源出力上限
-    % omega_DG: 分布式电源的切削率-切削率光伏出力除以光伏容量
-    % P_DG_max节点总容量
-    % omega_DG = P_DG .*(1./ LC_wt_expanded); % 当分母为0时赋值为0
-    % 重点想法:在其他条件一致的情况下 光伏出力与光伏容量成正比关系
-    % for i = 1:N_n
-    %     for s = 1:N_s
-    %         for hour = 1:24
-    %         cv = [cv;
-    %         % P_DG(s,i,hour) <= P_DG_max(s,i,hour) % 每个节点的DG装机容量上限为800kw
-    %         P_DG <= 800;
-    %         P_DG(s,i,hour) >= (1 - omega_DG(s,i,hour)) * 800  
-    %         ];
-    %         end
-    %     end
-    % end
-
-    % LC_DG_expanded = LC_wt_expanded + LC_pv_expanded;
-    % 
-    % for s = 1:N_s
-    %     for i = 1:N_n
-    %         for hour = 1:24
-    %         if LC_DG_expanded(s,i,hour) == 0 || P_DG(s,i,hour) == 0
-    %             omega_DG(s,i,hour) = 0; % 可再生能源最高渗透率为45%
-    %         else
-    %             omega_DG(s,i,hour) = P_DG(s,i,hour)/ LC_DG_expanded(s,i,hour); 
-    %         end
-    %         end
-    %     end
-    % end
-
-    % 6.DG运行约束-看一下柴园园论文中的定义
-    % 最大渗透率通常指的是配电网能够接纳的分布式电源（如光伏、风电等）的最大容量与电网最大负荷的比值
-    % tic
-    % cv = [cv;
-    %     % omega_DG(i) <= omega_DG_max(i), % 切削率最大值为45%
-    %     omega_DG <= 0.45;
-    %     omega_DG >= 0
-    %     ];
-    % 
-    % cv = [cv;
-    %     % DG容量上限约束 (向量化)
-    %     P_DG <= LC_DG_expanded;
-    %     % DG最小出力约束 (向量化) 800是容量的上限 应该改为小于安装容量
-    %     P_DG >= (1 - omega_DG) .* LC_DG_expanded
-
-        % P_DG(:,4,:) >= (1 - omega_DG(:,4,:)) * 800
-        % P_DG(:,7,:) >= (1 - omega_DG(:,7,:)) * 800
-        % P_DG(:,13,:) >= (1 - omega_DG(:,13,:)) * 800
-        % P_DG(:,17,:) >= (1 - omega_DG(:,17,:)) * 800
-        % P_DG(:,25,:) >= (1 - omega_DG(:,25,:)) * 800
-        % P_DG(:,27,:) >= (1 - omega_DG(:,27,:)) * 800
-        %]; 
-    % toc
-
-    % 7.可转移负荷量约束
-    tic
-        cv = [cv;
-        P_dr >= 0;          % P_dr(s,i) 是节点i在场景s下可转移负荷的总量
-        % P_dr(s,i) <= P_dr_max(s,i)
-        P_dr <= 37.15
-        ]; 
-    toc
-
-
-    % 天数约束-由pk转为t
-    % pk*365 再四舍五入，这里省去约束过程,即不需要pk参数了
-    t = [10 10 10 11 15 25 25 25 27 38 10 10 10 11 16 9 9 9 9 13 11 12 11 12 17]; % 不同场景的运行天数
-
 
 % 下层成本函数
 % b.DG运行成本
@@ -451,89 +193,78 @@ toc
 % c_om_wt: 风电单位运维成本
 % c_om_pv: 光伏单位运维成本
 
-% C_om = 0;
-% for s = 1:N_s
-%     for i = 1:N_n
-%         for hour = 1:24
-%         % C_om = C_om + t * (c_om_wt * sum(P_wt(s,i,:),3) + c_om_pv * sum(P_pv(s,i,:),3));
-%         C_om = C_om + t(s) * (0.2 * sum(P_wt(s,i,:),3) + 0.2 * sum(P_pv(s,i,:),3)); % 0.2元/kwh
-%         end
-%     end
-% end
-
-% b. DG运行成本(简化版)
+% b.DG运行成本(简化版)
 tic
-C_om = 0;
-P_wt_sum = sum(P_wt, 3);  % 形状为 N_s × N_n
-P_pv_sum = sum(P_pv, 3);  % 形状为 N_s × N_n
-
+% 32 24 25
+% P_wt_sum = sum(P_wt, 2);  
+% P_pv_sum = sum(P_pv, 2);
+% C_om = C_om + sum(t.* (0.2 * sum(P_wt_sum, 1) + 0.2 * sum(P_pv_sum, 1)))  * 24;
 % 向量化计算
-C_om = C_om + sum(t.* (0.2 * sum(P_wt_sum, 2) + 0.2 * sum(P_pv_sum, 2)))  * 24;
+C_om = sum(sum(0.2*P_wt,2)+sum(0.2*P_pv,2),1);% 大小为 1 1 25
+C_om = C_om.*reshape(repmat(t', [1,1]), [1,1,25]);% 此时大小为1 1 25
+% C_om = sum(sum(0.2*P_wt,2)+sum(0.2*P_pv,2),1).*t;
+size(C_om)
+C_om = sum(sum(C_om));
 toc
 
 % c.上级电网购电成本
 % 计算总环境成本C_en
 % N_s: 场景数量
-% d: 25*24矩阵,是系统的实际价格
 % P_en: N_s*24矩阵,场景s在时刻t从上级电网购买电力的有功功率
 % 看具体潮流约束公式,如果涉及到了单个节点约束,那么还是得扩展到三维
 % t: 场景概率向量(1*N_s)
 tic
-P_en_sum = sum(P_en, 2); 
+size(P_en)
+% P_en_sum = sum(P_en, 1); 
 C_en = 0;
-for s = 1:N_s
-    for hour = 1:24
-        C_en = C_en + d(1,hour) .* P_en_sum(s,hour) .* t(s);
+% C_en = C_en + d*sum(P_en, 1).*reshape(repmat(t', [1,1]), [1,1,25]);
+for hour = 1:24
+    for s = 1:25
+        C_en = C_en + sum(d(1,hour) * P_en(1,hour,s) .* t(s));
     end
 end
-% C_en = sum(sum(d(1,:) .* P_en_sum, 2) .* t(:)) * 24;
 toc
 
-% d.网络损失费用
-% 公式表示对所有场景的网络损失费用进行求和,其中包含损失系数(c_loss)、损失功率(P_loss)和场景s对应天数(t)
-tic
-Rij_matrix = repmat(reshape(Rij, 1, 32), [25, 1, 24]); % 扩展电阻维度
-for s = 1:25  % 遍历所有场景
-    for k = 1:32
-        for hour = 1:24
-            P_loss(s) = P_loss(s)+Iij(s,k,hour)*Rij_matrix(s,k,hour);
-        end
-    end
-end
-
-c_loss = 0.5;
-C_loss = sum(c_loss .* P_loss .* t);
-toc
 
 % d.网络损失费用(简化版)
 % 预计算电阻矩阵
-% Rij_matrix = repmat(reshape(Rij, 1, 32), [25, 1, 24]);
+tic
 % 向量化计算
-% P_loss = squeeze(sum(Iij .* Rij_matrix, 2));  
-% c_loss = 0.5;
-% C_loss = sum(c_loss .* P_loss .* t(:));
+% P_loss = squeeze(sum(Iij .* Rij_expanded, 2));
+for j = 1:25
+    P_loss_big(:,:,j) = Iij(:,:,j).*(r*ones(1,24));
+end
+size(P_loss_big)
+size(sum(sum(P_loss_big, 1),2))
+P_loss = reshape(sum(sum(P_loss_big, 1),2), 1, 25);
+size(P_loss)
+   
+c_loss = 0.5;
+C_loss = sum(c_loss .* (t .* P_loss));
+size(C_loss)
+toc
 
 % e.实施需求响应的补偿成本
 % P_dr(j,s,hour)表示场景s下负载节点j处24小时的可转移负载功率-可转移负载功率:配电网中能够通过需求响应(Demand Response, DR)机制在时间或空间上调整其用电行为的负荷功率
 % c_dr表示每单位功率的可转移负载的补偿成本
 
 tic
-P_dr_sum = sum(P_dr,3);
-C_dr = 0;
-c_dr = 0.2;
-for s = 1:N_s
-    for j = 1:N_n
-        C_dr = C_dr + c_dr * P_dr_sum(s,j) * t(s);
-    end
-end
-% C_dr = c_dr * sum(sum(P_dr_sum .* t(:), 2));
+% c_dr = 0.2;
+% C_dr = sum(c_dr * P_dr_sum * t);
+
+C_dr = sum(sum(0.2*P_dr_out,2),1);% 大小为 1 1 25
+C_dr = C_dr.*reshape(repmat(t', [1,1]), [1,1,25]);% 此时大小为1 1 25
+C_dr = sum(sum(C_dr));
+size(C_dr)
 toc
+
 % 下层模型目标函数_DG总运营成本-除开投资成本外的年综合成本,之后再修改
-C_om
-C_en
-C_loss
-C_dr
-f = C_om + C_en + C_loss + C_dr;
+size(C_om)
+size(C_en)
+size(C_loss)
+size(C_dr)
+f = C_om + C_en + C_loss + C_dr; % 不同项之间不能差太多
+size(f)
 
 % 求解
 tic
@@ -543,17 +274,28 @@ ops.cplex.mip.tolerances.mipgap = 0.02;  % 放宽最优间隙
 ops.cplex.parallel = 1;  % 启用并行计算
 ops.cplex.mip.strategy.search = 1;  % 使用动态搜索
 ops.cplex.mip.strategy.heuristicfreq = 100; % 调整启发式频率
-
+% ops=sdpsettings('solver', 'cplex');
 optimize(cv, f, ops);
 toc
-% 提取结果- 结果都是0,约束条件就有问题
+
+% 提取结果
 t = value(t);
 U = value(U);
+Iij = value(Iij);
 P = value(P);
 Q = value(Q);
+Pij = value(Pij);
+Qij = value(Qij);
 P_pv = value(P_pv);
 P_wt = value(P_wt);
-P_dr = value(P_dr);
+P_dr_out = value(P_dr_out);
+size(f)
 f = value(f);
+C_en = value(C_en);
+C_loss = value(C_loss);
+C_dr = value(C_dr);
+P_L = value(P_L);
+size(P_en)
 P_en = value(P_en);
 P_loss = value(P_loss);
+U;
