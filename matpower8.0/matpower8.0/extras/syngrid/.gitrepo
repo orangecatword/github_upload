@@ -1,0 +1,12 @@
+; DO NOT EDIT (unless you know what you are doing)
+;
+; This subdirectory is a git "subrepo", and this file is maintained by the
+; git-subrepo command. See https://github.com/git-commands/git-subrepo#readme
+;
+[subrepo]
+	remote = git@github.com:MATPOWER/mx-syngrid
+	branch = master
+	commit = 9440ad0a5fa03fdb48f569d2715f79203a8a6538
+	parent = ff921eb319e7d858d7d02ee9a98dac5cce6ae751
+	method = merge
+	cmdver = 0.4.6

@@ -1,0 +1,87 @@
+% \usepackage[titles]{tocloft}
+% \cftsetpnumwidth {1.25cm}\cftsetrmarg{1.5cm}
+% \setlength{\cftchapnumwidth}{0.75cm}
+% \setlength{\cftsecindent}{\cftchapnumwidth}
+% \setlength{\cftsecnumwidth}{1.25cm}
+
+% moved to conf.py, latex_elements = {'extrapackages' ...}
+% \usepackage{bm}     %% bold math, for bold italics uppercase Greek characters
+% \usepackage{upgreek}
+% \usepackage{amsfonts}
+% \usepackage{amstext}
+% \usepackage{soul}
+% \usepackage{relsize}
+
+\newcommand{\matpower}[0]{{M{\smaller{ATPOWER}}}}
+\newcommand{\matpowerurl}[0]{https://matpower.org}
+\newcommand{\matpowerlink}[0]{\href{\matpowerurl}{\matpower{}}}
+\newcommand{\matpoweri}[0]{{\emph{M{\smaller{ATPOWER}}}}}
+\newcommand{\matpowerb}[0]{{\textbf{M{\smaller{ATPOWER}}}}}
+% \newcommand{\matpoweri}[0]{{\emph{M}{\smaller{\emph{ATPOWER}}}}}
+% \newcommand{\matpower}[0]{{\sc Matpower}}
+
+\newcommand{\matpowerextrasgithuburl}[0]{https://github.com/MATPOWER/matpower-extras}
+\newcommand{\matpowerextraslink}[0]{\href{\matpowerextrasgithuburl}{\matpower{} Extras}}
+
+\newcommand{\matlab}[0]{{\sc Matlab}}
+\newcommand{\matlabr}[0]{{\matlab{} \textsuperscript{\tiny \textregistered}}}
+\newcommand{\matlaburl}[0]{https://www.mathworks.com}
+\newcommand{\matlablink}[0]{\href{\matlaburl}{\matlab{}}}
+\newcommand{\octave}[0]{GNU Octave}
+\newcommand{\octaveurl}[0]{https://www.octave.org}
+\newcommand{\octavelink}[0]{\href{\octaveurl}{\octave{}}}
+\newcommand{\pserc}[0]{{\sc PSerc}}
+\newcommand{\PSERC}[0]{{Power Systems Engineering Research Center (\pserc{})}}
+\newcommand{\certs}[0]{{\sc Certs}}
+\newcommand{\CERTS}[0]{{Consortium for Electric Reliability Technology Solutions (\certs{})}}
+
+\newcommand{\mpver}[0]{8.0}
+\newcommand{\mumurl}[0]{https://matpower.org/docs/MATPOWER-manual-\mpver.pdf}
+\newcommand{\mum}[0]{\href{\mumurl}{\matpower{} User's Manual}}
+
+\newcommand{\mptest}[0]{{MP-Test}}
+\newcommand{\mptesturl}[0]{{https://github.com/MATPOWER/mptest}}
+\newcommand{\mptestlink}[0]{\href{\mptesturl}{\mptest{}}}
+\newcommand{\mptestver}[0]{8.0}
+% \newcommand{\mptestmanurl}[0]{https://matpower.org/docs/MP-Test-manual-\mptestver.pdf}
+% \newcommand{\mptestman}[0]{\href{\mptestmanurl}{\mptest{} User's Manual}}
+
+\newcommand{\mips}[0]{{MIPS}}
+\newcommand{\mipsurl}[0]{https://github.com/MATPOWER/mips}
+\newcommand{\mipslink}[0]{\href{\mipsurl}{\mips{}}}
+\newcommand{\mipsname}[0]{{{\bf M}{\sc atpower} \textbf{I}nterior \textbf{P}oint \textbf{S}olver}}
+\newcommand{\mipsver}[0]{1.5.1}
+\newcommand{\mipsmanurl}[0]{https://matpower.org/docs/MIPS-manual-\mipsver.pdf}
+\newcommand{\mipsman}[0]{\href{\mipsmanurl}{\mips{} User's Manual}}
+
+\newcommand{\mpom}[0]{\mbox{MP-Opt-Model}}
+\newcommand{\mpomurl}[0]{https://github.com/MATPOWER/mp-opt-model}
+\newcommand{\mpomlink}[0]{\href{\mpomurl}{\mpom{}}}
+\newcommand{\mpomname}[0]{\mpom{}}
+\newcommand{\mpomver}[0]{4.2}
+\newcommand{\mpommanurl}[0]{https://matpower.org/docs/MP-Opt-Model-manual-\mpomver.pdf}
+\newcommand{\currentmpommanurl}[0]{https://matpower.org/docs/MP-Opt-Model-manual.pdf}
+\newcommand{\mpomman}[0]{\href{\mpommanurl}{\mpom{} User's Manual}}
+
+\newcommand{\most}[0]{{MOST}}
+\newcommand{\mostname}[0]{{{\bf M}{\sc atpower} \textbf{O}ptimal \textbf{S}cheduling \textbf{T}ool}}
+\newcommand{\mosturl}[0]{https://github.com/MATPOWER/most}
+\newcommand{\mostlink}[0]{\href{\mosturl}{\most{}}}
+\newcommand{\mostver}[0]{1.3}
+\newcommand{\mostmanurl}[0]{https://matpower.org/docs/MOST-manual-\mostver.pdf}
+\newcommand{\mostman}[0]{\href{\mostmanurl}{\most{} User's Manual}}
+
+\newcommand{\TNfiveurl}[0]{https://matpower.org/docs/TN5-MP-Element.pdf}
+\newcommand{\TNfive}[0]{\href{\TNfiveurl}{\it \matpower{} Technical Note~5}}
+
+\newcommand{\usermanurl}[0]{https://matpower.org/doc/users-manual/}
+\newcommand{\userman}[0]{\href{\usermanurl}{\it \matpower{} User's Manual}}
+\newcommand{\devmanurl}[0]{https://matpower.org/doc/dev-manual/}
+\newcommand{\devman}[0]{\href{\devmanurl}{\it \matpower{} Developer's Manual}}
+\newcommand{\refmanurl}[0]{https://matpower.org/doc/ref-manual/}
+\newcommand{\refman}[0]{\href{\refmanurl}{\it \matpower{} Reference Manual}}
+
+% used by sphinx role hl to highlight text
+\newcommand{\DUrolehl}{\hl}
+
+\input{mathCmds.tex.txt}
