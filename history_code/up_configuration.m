@@ -58,7 +58,7 @@ function [new_population, new_obj]= up_configuration(C_res,pk,r,x,g,b,pload,qloa
     % 计算比例,因为在其他条件固定的情况下,光伏风电出力与其容量成正比
 
     for i = 1:pop_size
-        [t, U_trans, P_trans, Q_trans, P_dr_trans, f_trans, P_en_trans, P_loss_trans] = dw_optimum_stand(LC_wt(i,:), LC_pv(i,:), C_res, r, x, g, b, pload, qload,branch,pv,wt); % 得到下层输出的参数
+        [t, U_trans, P_trans, Q_trans, P_dr_trans, f_trans, P_en_trans, P_loss_trans] = dw_optimum_stand(LC_wt(i,:), LC_pv(i,:), C_res, r, x,pload, qload,branch,pv,wt); % 得到下层输出的参数
     end
 
     % 进化循环

@@ -1,117 +1,25 @@
-% 参考文献:英_配电网中多目标分布式发电分层最优规划:改进的白鲸优化算法
-
-% 论文在案例分析中给出的参数:系统总有功和无功负荷为3715 + j2350 kVA;
-% IEEE 33在IEEE3BW.m中,第一行是母线(即节点1)与节点2的线路数据    -在论文《英_采用多目标麻雀搜索算法建立主动配电网动态重构集成优化》中给出了IEEE33线路的视在功率
-% 系统参考电压为12.66 kV,作为电压归一化分母
-% WT的安装节点位置至多为13、17、25;不同的优化算法可能会选择其中的两个点;系统安装的WT最大总容量为1000kw 
-% PV的安装节点数为4、7、27;不同的优化算法可能会选择其中的1-2个点;每个节点的DG装机容量上限为800kw, DG总容量上限为1700kw
-
-% 投资成本(元/kwh):WT 6200 PV 7000
-% 运营和维护成本(元/kwh):WT 0.2 PV 0.2
-% 最大使用寿命(年):WT 20 PV 20
-% 现值系数:WT 0.06 PV 0.06
-
-% 分时电价-已放入程序
-
-% 系统电压限制(p.u): 0.95~1.05
-% 分支电路容量限制(MVA) 0~7
-% 单位需求响应补偿成本(元)0.2元
-% 节点最大可转移负荷(kW)37.15KW
-% 单位网络损耗成本(元)0.5元
-% 最大可再生能源渗透率 45%
-
+% 运用典型场景集法处理风光新能源的不确定性
 clc
 clear
-warning off
-tic
-%% 初始化参数
-mpc = IEEE33BW; %IEEE33标准节点系统
 
-% 获取负荷值
-pload = mpc.pload;% 负荷数据
-p_l = pload; % 将负荷的原始数据之后导入下层模型
-pload_prim = mpc.pload_prim/1000;%化为标幺值
-qload_prim = mpc.qload_prim/1000;
-a = 3.715; % 单时段所有节点有功容量,MW
-b = 2.3; % 单时段所有节点无功容量,MW
-pload = pload/a;%得到各个时段与单时段容量的比例系数
-qload = pload/b;%假设有功负荷曲线与无功负荷曲线相同
-pload = pload_prim*pload;%得到33*24的负荷值,每一个时间段每个节点的负荷
-qload = qload_prim*qload;
+% 定义变量
+% 多场景下的风光值
+pv = zeros(4, 24);
+wind = zeros(4, 24);
 
-% 固定光伏风电值
-pv = mpc.pv;
-wt = mpc.wind;
+U = zeros(4, 33, 24); % 电压
+P = zeros(4, 33, 24); % 节点功率
+f = zeros(4,1);       % 适应度函数
 
-branch = mpc.branch;
-branch(:,3) = branch(:,3)*1/(12.66^2);%求阻抗标幺值 论文中电压压基准值选择为12.66kV
-branch(:,3)
-r = real(branch(:,3));
-x = imag(branch(:,3));
-
-% 求导纳的实部与虚部
-g = r./(r.^2 + x.^2);
-b = -x./(r.^2 + x.^2);
-
-T = 24; %时段数为24小时
-nb = 33;%节点数
-nl = 32;%支路数
-
-nwt = 3; % 3个风机
-npv = 3; % 3个光伏
-
-% 获取光伏风电的不确定性在典型场景下的出力情况
-% pk:不同场景出现的概率,大小为(1, 25)
-% C_res:大小为(25, 48); % 场景总数为25,风光各占24h 不同场景下,聚类中心的光伏和风电出力值
-[C_res,pk] = datap; % 场景总数为25
-% t =  365 * pk 如果要是天数,还需考虑四舍五入- pk 为概率,t为天数 能不能通过加一个约束来解决 天数和为365 同时 t ≈ 365 * pk(不能差超过1天)
-
-% 导入的的因素是场景下光伏 风力出力值
-[new_population, new_obj] = up_configuration(C_res,pk,r,x,g,b,pload,qload,branch,pv,wt);
+[C_res,pk] = datap; % 获取在不同场景下的风光数据 pk:每种场景发生的概率
+for i = 1:4
+    pv(i,:) = C_res(i,1:24);
+    wind(i,:) = C_res(i,25:48);
+end
 
 
-
-
-
-
-% 结果
-% V = value(V);%电压的平方
-% I = value(I);%电流的平方
-% P = value(P);%线路有功
-% Q = value(Q);%线路无功
-% p_wt = value(p_wt);%风机有功
-% p_pv = value(p_pv);%光伏有功
-% Pin = value(Pin);
-% Qin = value(Qin);
-% P_wt = value(P_wt);
-% P_pv = value(P_pv);
-
-% 画图
-% 图2:三维电压分布图-展示各节点在24小时内的电压幅值时空分布
-% figure;
-% yy=1:24;
-% xn=1:33;
-% % mesh:生成三维网格曲面图,横轴为时间(1-24小时),纵轴为节点编号(1-33),竖轴为电压标幺值(V)
-% mesh(yy,xn,V(:,:,end)),xlabel('时间'),ylabel('节点'),zlabel('电压(p.u.)') % V(:,:,end):取最后一次迭代的电压数据。
-% title('电压');
-% 
-% % 图3:线路有功功率分布图
-% figure;
-% yy=1:24;
-% xn=1:32;
-% mesh(yy,xn,P(:,:,end)),xlabel('时间'),ylabel('节点'),zlabel('线路有功')
-% 
-% % 图4:功率平衡堆叠图-可视化24小时内各电源出力与负荷的平衡关系
-% figure;
-% % 堆叠柱状图:bar(yyf, 'stack')绘制储能充电功率(负值),yyz包含储能放电、风电(3台)、光伏(2台)和购电功率
-% yyf=[-p_ch(1,:,end);-p_ch(2,:,end)]';
-% bar(yyf,'stack');
-% yyz=[p_dis(1,:,end);p_dis(2,:,end);p_wt(1,:,end);p_wt(2,:,end);p_wt(3,:,end);p_pv(1,:,end);p_pv(2,:,end);Pg(end,:,end)]';
-% hold on
-% bar(yyz,'stack');
-% plot(sum(pload),'b--*','LineWidth',1.5)
-% legend('储能1充电','储能2充电','储能1放电','储能2放电','风电1','风电2','风电3','光伏1','光伏2','购电','有功负荷');
-% grid on
-% xlabel('时间');
-% ylabel('功率');
+for i = 1:4
+    [U(i,:,:),P(i,:,:),f(i)] = untitled2(pv(i,:),wind(i,:),pk(i));
+end
+f_sum = sum(f); % 最终的目标函数
 
