@@ -1,0 +1,302 @@
+% 现在的主要问题 加上时间维度后 还怎么用matpower计算验证呢-想法:固定时刻固定节点验证
+% 加入储能以调节电压-把储能接入6 16 29节点-储能容量暂定为2MW-问题:是否要考虑风 光 储能的运行成本
+% -储能约束在于下一时刻要与上一时刻有电能的约束
+% clc
+% clear
+
+% 分析一下upstream与dnstream的思路:针对branch(:,2)的节点,upstream为输入这些节点的支路-从1到37(在李超图中有标注);dnstream为这些节点输出后的支路
+
+function[U,P,f] = function1(pv,wind,pk)
+mpc = case33bw;
+
+% 从节点流出的有功与无功功率
+P = sdpvar(33, 24, 'full');
+% Q = sdpvar(33, 24, 'full');
+
+% 支路功率
+Pij = sdpvar(32, 24, 'full');
+Qij = sdpvar(32, 24, 'full');
+% 支路电流的平方
+Iij = sdpvar(32, 24, 'full'); 
+% 支路电压的平方
+U = sdpvar(33, 24, 'full'); 
+% U0=1.0609; % 起始点电压-部分论文把首端电压调高 已起到抬高末端电压的作用
+
+Pg = sdpvar(33,24);%发电机有功
+Qg = sdpvar(33,24);%发电机无功
+Pgmax=[ones(1,24);zeros(32,24)];
+Qgmax=[ones(1,24);zeros(32,24)];
+
+branch = mpc.branch;
+
+% 结论:直接从branch中获得的数据已经约等于标幺值了
+r = branch(:,3);
+x = branch(:,4);
+% 节点电压标幺值-暂时用不上
+% bus = mpc.bus;
+
+% 获取负荷值-进一步复杂化,即节点负荷需求会随着时间而发生变化
+pload = mpc.pload;% 负荷数据
+pload_prim = mpc.pload_prim/(1000*10);% 10为基准值 最后得到的负荷为标幺值
+qload_prim = mpc.qload_prim/(1000*10);
+a = 3.715; % 单时段所有节点有功容量,MW
+b = 2.3; % 单时段所有节点无功容量,MW
+pload = pload/a;%得到各个时段与单时段容量的比例系数
+qload = pload/b;%假设有功负荷曲线与无功负荷曲线相同
+PL = pload_prim*pload;%得到33*24的负荷值,每一个时间段每个节点的负荷
+QL = qload_prim*qload;
+
+% 可转移负载功率 
+P_dr_out = sdpvar(33, 24, 'full'); % 转移出的功率
+P_dr_in = sdpvar(33, 24, 'full'); % 转移入的功率
+
+% 可转移负荷状态
+u_out = binvar(33, 24,'full');% 高峰转出
+u_in = binvar(33, 24,'full');% 低峰转入
+
+% 储能状态
+Ies_c1 = binvar(1, 24,'full');% 充电状态
+Ies_dc1 = binvar(1, 24,'full');% 放电状态
+Ies_c2 = binvar(1, 24,'full');
+Ies_dc2 = binvar(1, 24,'full');
+Ies_c3 = binvar(1, 24,'full');
+Ies_dc3 = binvar(1, 24,'full');
+
+% 储能容量
+Ees_max = 0.2; % 标幺值 实际为2MWh
+% 储能设备剩余能量
+Ees1 = sdpvar(1, 25,'full'); % 问题:加上24h完了后的下一时刻,根据时间-剩余容量图可知 25时刻很可能会跌出下限
+Ees2 = sdpvar(1, 25,'full');
+Ees3 = sdpvar(1, 25,'full');
+
+% 储能功率
+Pes_c1 = sdpvar(1, 24,'full');% 充电功率
+Pes_dc1 = sdpvar(1, 24,'full');% 放电功率
+Pes_c2 = sdpvar(1, 24,'full');
+Pes_dc2 = sdpvar(1, 24,'full');
+Pes_c3 = sdpvar(1, 24,'full');
+Pes_dc3 = sdpvar(1, 24,'full');
+
+upstream=zeros(33,32);%代表流入节点支路
+dnstream=zeros(33,32);%代表流出节点支路
+for i=1:32
+    upstream(i+1,i)=1;
+end
+
+for i=[1:17,19:21,23:24,26:32]
+    dnstream(i,i)=1;
+end
+dnstream(2,18)=1;
+dnstream(3,22)=1;
+dnstream(6,25)=1;
+
+
+% 在这里加上确定容量函数-放弃对风光容量的初始化-先放弃上层模型
+% [LC_wt, LC_pv] = initialize_population(10);
+% 确认风光的安装位置 风: 13 17 25 光: 4 7 27
+Loc_pv_initial = [0 0 0 1 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0];
+Loc_wt_initial = [0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 1 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0];
+% Ppv = (LC_pv(1,:)/1000)' * (mpc.pv/10); % 标幺值
+% Pwt = (LC_wt(1,:)/1500)' * (mpc.wind/10);
+% Ppv = (Loc_pv_initial/3)' * (mpc.pv/10); % 标幺值
+% Pwt = (Loc_wt_initial/3)' * (mpc.wind/10);
+
+t = round(365*pk,0); % 将每个场景所占的概率转化为 一年中该场景占有的天数
+Ppv = (Loc_pv_initial/3)' * (pv/10); % 标幺值
+Pwt = (Loc_wt_initial/3)' * (wind/10);
+
+% 确认储能的安装位置 (多安装几个储能试试) 6 16 29
+Lc_pes1 = [0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0];
+Lc_pes2 = [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0];
+Lc_pes3 = [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0];
+
+P_0 = PL - Ppv - Pwt; % 已经固定好的功率
+Q = QL;
+
+% 约束条件
+cv = [];
+cv = [cv;
+    U <= 1.1025;
+    %U <= 1.21;
+    U >= 0.9025
+    %U >= 0.81
+    ];
+cv = [cv, -Pgmax <= Pg,Pg <= Pgmax,-Qgmax <= Qg,Qg <= Qgmax];
+%% 储能约束
+cv = [cv;
+    Ies_c1 + Ies_dc1 <= 1; % 储能状态约束
+    sum(Pes_c1) - sum(Pes_dc1) == 0; % 充放电的功率和最好一致
+    Pes_c1 >= 0;
+    Pes_c1 <= Ies_c1 * 0.02; % 储能容量的10% 
+    Pes_dc1 >= 0;
+    Pes_dc1 <= Ies_dc1 * 0.02;
+    Ees1(1) == 0.5*0.2;
+    Ees1 >= 0.2 * 0.2;
+    Ees1 <= 0.8 * 0.2
+    ]; 
+
+cv = [cv;
+    Ies_c2 + Ies_dc2 <= 1 % 储能状态约束
+    sum(Pes_c2) - sum(Pes_dc2) == 0; % 充放电的功率和最好一致
+    Pes_c2 >= 0;
+    Pes_c2 <= Ies_c2 * 0.02; % 储能容量的10% 
+    Pes_dc2 >= 0;
+    Pes_dc2 <= Ies_dc2 * 0.02;
+    Ees2(1) == 0.5*0.2;
+    Ees2 >= 0.2 * 0.2;
+    Ees2 <= 0.8 * 0.2
+    ]; 
+
+cv = [cv;
+    Ies_c3 + Ies_dc3 <= 1 % 储能状态约束
+    sum(Pes_c3) - sum(Pes_dc3) == 0; % 充放电的功率和最好一致
+    Pes_c3 >= 0;
+    Pes_c3 <= Ies_c3 * 0.02; % 储能容量的10% 
+    Pes_dc3 >= 0;
+    Pes_dc3 <= Ies_dc3 * 0.02;
+    Ees3(1) == 0.5*0.2;
+    Ees3 >= 0.2 * 0.2;
+    Ees3 <= 0.8 * 0.2
+    ]; 
+
+cv = [cv;
+    Ees1(2:25)==Ees1(1:24)+0.9*Pes_c1-1.1*Pes_dc1;
+    Ees2(2:25)==Ees2(1:24)+0.9*Pes_c2-1.1*Pes_dc2;
+    Ees3(2:25)==Ees3(1:24)+0.9*Pes_c3-1.1*Pes_dc3
+    ];
+
+%% 可转移负荷状态约束
+cv = [cv;
+    u_out + u_in <=1 % 可转移负荷状态约束
+    sum(P_dr_out,2) - sum(P_dr_in,2) == 0;
+    PL- P_dr_out + P_dr_in >= 0;
+    P_dr_out >= 0;
+    P_dr_out <= u_out*37.15*0.0001;
+    P_dr_in >= 0;
+    P_dr_in <= u_in*37.15*0.0001;
+    P_dr_out(1,:) == 0;
+    P_dr_in(1,:) == 0;
+    ];
+
+cv = [cv;
+    P == P_0 - P_dr_out + P_dr_in + Lc_pes1' * Pes_c1 - Lc_pes1' * Pes_dc1 +...  % 负荷转移走了 消纳的功率减小;反之负荷转入,PL增加-充电是在消耗功率
+    + Lc_pes2' * Pes_c2 - Lc_pes2' * Pes_dc2 + Lc_pes3' * Pes_c3 - Lc_pes3' * Pes_dc3
+    ];
+cv = [cv;
+    % 如果将P Q定义为从节点流出的有功和无功功率,那么熊壮壮公式更符合物理定义
+    P + Pg== upstream*Pij - upstream*(Iij .* (r*ones(1,24))) - dnstream * Pij; % 有无功功功率
+    Q + Qg== upstream*Qij - upstream*(Iij .* (x*ones(1,24))) - dnstream * Qij;
+    U(branch(:,2),:) == U(branch(:,1),:) - 2.*r*ones(1,24).*Pij - 2.*x*ones(1,24).*Qij + (r.^2+x.^2)*ones(1,24).*Iij;  
+    % 问题:在matpower的电压计算过程中 没有考虑r x前面的系数2
+    U(1,:) == 1;
+    ];
+
+% 进一步的话要试一下将二阶锥约束cone换成norm-norm起不到预想作用
+for i = 1:32
+    for t = 1:24
+        cv = [cv;
+            cone([2*Pij(i,t); 2*Qij(i,t);Iij(i,t) - U(branch(i,1),t)], Iij(i,t) + U(branch(i,1),t))]; 
+ % 我的想法:因为关于Iij的约束是二阶锥约束而非等式约束,所以Iij更像是在约束计算中的中间变量,最后的电流还得是功率的平方除以电压的平方
+    end
+end
+
+
+% 利用损失功率最小为优化目标 解出这些变量
+P_loss = Iij.*(r*ones(1,24));
+I_custom = (Pij.^2 + Qij.^2)./U(branch(:,1),:); % 已经是标幺值,支路首端电流
+% 注:Iij与I_custom的全局相关性：r = 0.998（几乎完全线性相关）,比例关系稳定,所以P_loss的计算式也能反映实际的网损
+
+% 目标函数-乘一年内发生该情况的天数
+cost = [0.2,0.2,0.2,0.2,0.2,0.2,0.2,0.4,0.4,0.4,0.45,0.56,0.56,0.45,0.45,0.4,0.56,0.4,0.45,0.45,0.45,0.4,0.4,0.2]; % 电价 单位元/1KWh-万元/10MWh(正好为标幺值单位)
+% cost电价肯定是针对各个节点到用户
+Puse = PL- P_dr_out + P_dr_in;
+Puse_sum = sum(Puse,1); % 转换到1*24维
+% 购电成本
+f_cost = sum(Puse_sum.*cost);
+% 损失成本
+f_loss = 0.5 * sum(sum(P_loss)); % 猜测:0.5的单位也是元/kwh-万元/10MWh
+% 可转移负荷成本(减少负荷的波动)
+f_dr = 0.2 * sum(sum(P_dr_out)) + 0.8 * max(sum(P_dr_out,1));% 可转移负荷的惩罚 除了在总量上有惩罚,还应该在单时刻转移的量上惩罚
+% 对照实验证明,需要在转移总量和转移峰值上均作出约束,才能实现预期效果 0.9为暂时确定的系数
+
+f = t*(f_cost + f_loss + f_dr);
+
+
+tic
+ops = sdpsettings('solver', 'cplex', 'verbose', 0);
+ops.cplex.preprocessing.presolve = 1; % 启用预处理
+ops.cplex.workmem = 8192;  % 8GB
+ops.cplex.timelimit = 60;  % 减少求解时间限制
+ops.cplex.mip.tolerances.mipgap = 0.001;  % 放宽最优间隙
+ops.cplex.parallel = 1;  % 启用并行计算
+ops.cplex.mip.strategy.search = 1;  % 使用动态搜索
+ops.cplex.mip.strategy.heuristicfreq = 100; % 调整启发式频率
+% ops=sdpsettings('solver', 'cplex');
+optimize(cv, f, ops);
+toc
+
+U = value(U);
+P = value(P);
+Pij = value(Pij);
+Qij = value(Qij);
+Iij = value(Iij);
+I_custom =value(I_custom);
+
+f = value(f);
+P_loss = value(P_loss);
+
+% 储能充放电功率
+Pes_c1 = value(Pes_c1);
+Pes_dc1 = value(Pes_dc1);
+Ees1 = value(Ees1);
+Pes_c2 = value(Pes_c2);
+Pes_dc2 = value(Pes_dc2);
+Ees2 = value(Ees2);
+Pes_c3 = value(Pes_c3);
+Pes_dc3 = value(Pes_dc3);
+Ees3 = value(Ees3);
+
+
+Puse = value(Puse); % 进行负荷转以后各个节点的负荷
+P_dr_out = value(P_dr_out);
+P_dr_in = value(P_dr_in);
+% 把可转移负荷加入前后的时刻-功率图画出
+PL_sum = sum(PL,1);
+Puse_sum = sum(Puse,1);
+% 总功率的时刻图
+P_sum = sum(P,1);
+
+% 绘制PL_sum和Puse_sum折线图
+figure;
+hold on;
+plot(1:24, PL_sum, 'b-o', 'LineWidth', 2, 'DisplayName', '原始负荷');
+plot(1:24, Puse_sum, 'r-s', 'LineWidth', 2, 'DisplayName', '调整后负荷');
+xlabel('时间 (小时)');
+ylabel('总负荷 (标幺值)');
+title('24小时负荷曲线对比');
+legend('show');
+grid on;
+hold off;
+
+figure
+plot(1:24, U(33,:), 'g-o', 'LineWidth', 2, 'DisplayName', '节点33的电压');% 为什么会在16时刻突然下坠,然后在21时刻又往回转-再20时刻左右的先降后升指定有说法
+% 原因:在16-20时刻 节点整体功率提高 导致电压在每个节点降的更多 
+xlabel('时间 (小时)');
+ylabel('电压 (标幺值)');
+legend('show');
+grid on;
+
+figure
+plot(1:24, P_sum, 'b-o', 'LineWidth', 2, 'DisplayName', '功率');
+xlabel('时间 (小时)');
+ylabel('功率 (标幺值)');
+legend('show');
+grid on;
+
+figure
+plot(1:25, Ees1, 'b-o', 'LineWidth', 2, 'DisplayName', '储能剩余能量');
+xlabel('时间 (小时)');
+ylabel('功率 (标幺值)');
+legend('show');
+grid on;
+size(U)

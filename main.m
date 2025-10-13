@@ -1,4 +1,5 @@
 % 运用典型场景集法处理风光新能源的不确定性
+% 改进的想法:赋予不同场景物理含义;将kmeans改为W距离
 clc
 clear
 
@@ -19,7 +20,7 @@ end
 
 
 for i = 1:4
-    [U(i,:,:),P(i,:,:),f(i)] = untitled2(pv(i,:),wind(i,:),pk(i));
+    [U(i,:,:),P(i,:,:),f(i)] = function1(pv(i,:),wind(i,:),pk(i));
 end
 f_sum = sum(f); % 最终的目标函数
 

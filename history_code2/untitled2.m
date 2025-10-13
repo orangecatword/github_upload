@@ -4,6 +4,8 @@
 % clc
 % clear
 
+% 分析一下upstream与dnstream的思路:针对branch(:,2)的节点,upstream为输入这些节点的支路-从1到37(在李超图中有标注);dnstream为这些节点输出后的支路
+
 function[U,P,f] = untitled2(pv,wind,pk)
 mpc = case33bw;
 
@@ -93,7 +95,7 @@ dnstream(5,25) = 1;
 
 % 在这里加上确定容量函数-放弃对风光容量的初始化-先放弃上层模型
 % [LC_wt, LC_pv] = initialize_population(10);
-% 确认风光的安装位置
+% 确认风光的安装位置 风: 13 17 25 光: 4 7 27
 Loc_pv_initial = [0 0 0 1 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0];
 Loc_wt_initial = [0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 1 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0];
 % Ppv = (LC_pv(1,:)/1000)' * (mpc.pv/10); % 标幺值
@@ -127,9 +129,9 @@ cv = [cv;
     Ies_c1 + Ies_dc1 <= 1; % 储能状态约束
     sum(Pes_c1) - sum(Pes_dc1) == 0; % 充放电的功率和最好一致
     Pes_c1 >= 0;
-    Pes_c1 <= Ies_c1 * 0.04; % 储能容量的20% 
+    Pes_c1 <= Ies_c1 * 0.02; % 储能容量的10% 
     Pes_dc1 >= 0;
-    Pes_dc1 <= Ies_dc1 * 0.04;
+    Pes_dc1 <= Ies_dc1 * 0.02;
     Ees1(1) == 0.5*0.2;
     Ees1 >= 0.2 * 0.2;
     Ees1 <= 0.8 * 0.2
@@ -139,9 +141,9 @@ cv = [cv;
     Ies_c2 + Ies_dc2 <= 1 % 储能状态约束
     sum(Pes_c2) - sum(Pes_dc2) == 0; % 充放电的功率和最好一致
     Pes_c2 >= 0;
-    Pes_c2 <= Ies_c2 * 0.04; % 储能容量的20% 
+    Pes_c2 <= Ies_c2 * 0.02; % 储能容量的10% 
     Pes_dc2 >= 0;
-    Pes_dc2 <= Ies_dc2 * 0.04;
+    Pes_dc2 <= Ies_dc2 * 0.02;
     Ees2(1) == 0.5*0.2;
     Ees2 >= 0.2 * 0.2;
     Ees2 <= 0.8 * 0.2
@@ -151,9 +153,9 @@ cv = [cv;
     Ies_c3 + Ies_dc3 <= 1 % 储能状态约束
     sum(Pes_c3) - sum(Pes_dc3) == 0; % 充放电的功率和最好一致
     Pes_c3 >= 0;
-    Pes_c3 <= Ies_c3 * 0.04; % 储能容量的20% 
+    Pes_c3 <= Ies_c3 * 0.02; % 储能容量的10% 
     Pes_dc3 >= 0;
-    Pes_dc3 <= Ies_dc3 * 0.04;
+    Pes_dc3 <= Ies_dc3 * 0.02;
     Ees3(1) == 0.5*0.2;
     Ees3 >= 0.2 * 0.2;
     Ees3 <= 0.8 * 0.2
@@ -203,7 +205,7 @@ end
 
 % 利用损失功率最小为优化目标 解出这些变量
 P_loss = Iij.*(r*ones(1,24));
-I_custom = sqrt(Pij.^2 + Qij.^2)./U(branch(:,1),:); % 已经是标幺值,支路首端电流
+I_custom = (Pij.^2 + Qij.^2)./U(branch(:,1),:); % 已经是标幺值,支路首端电流
 % 注:Iij与I_custom的全局相关性：r = 0.998（几乎完全线性相关）,比例关系稳定,所以P_loss的计算式也能反映实际的网损
 
 % 目标函数-乘一年内发生该情况的天数
@@ -268,35 +270,35 @@ Puse_sum = sum(Puse,1);
 P_sum = sum(P,1);
 
 % 绘制PL_sum和Puse_sum折线图
-% figure;
-% hold on;
-% plot(1:24, PL_sum, 'b-o', 'LineWidth', 2, 'DisplayName', '原始负荷');
-% plot(1:24, Puse_sum, 'r-s', 'LineWidth', 2, 'DisplayName', '调整后负荷');
-% xlabel('时间 (小时)');
-% ylabel('总负荷 (标幺值)');
-% title('24小时负荷曲线对比');
-% legend('show');
-% grid on;
-% hold off;
+figure;
+hold on;
+plot(1:24, PL_sum, 'b-o', 'LineWidth', 2, 'DisplayName', '原始负荷');
+plot(1:24, Puse_sum, 'r-s', 'LineWidth', 2, 'DisplayName', '调整后负荷');
+xlabel('时间 (小时)');
+ylabel('总负荷 (标幺值)');
+title('24小时负荷曲线对比');
+legend('show');
+grid on;
+hold off;
 
-% figure
-% plot(1:24, U(33,:), 'g-o', 'LineWidth', 2, 'DisplayName', '节点33的电压');% 为什么会在16时刻突然下坠,然后在21时刻又往回转-再20时刻左右的先降后升指定有说法
-% % 原因:在16-20时刻 节点整体功率提高 导致电压在每个节点降的更多 
-% xlabel('时间 (小时)');
-% ylabel('电压 (标幺值)');
-% legend('show');
-% grid on;
+figure
+plot(1:24, U(33,:), 'g-o', 'LineWidth', 2, 'DisplayName', '节点33的电压');% 为什么会在16时刻突然下坠,然后在21时刻又往回转-再20时刻左右的先降后升指定有说法
+% 原因:在16-20时刻 节点整体功率提高 导致电压在每个节点降的更多 
+xlabel('时间 (小时)');
+ylabel('电压 (标幺值)');
+legend('show');
+grid on;
 
-% figure
-% plot(1:24, P_sum, 'b-o', 'LineWidth', 2, 'DisplayName', '功率');
-% xlabel('时间 (小时)');
-% ylabel('功率 (标幺值)');
-% legend('show');
-% grid on;
-% 
-% figure
-% plot(1:25, Ees1, 'b-o', 'LineWidth', 2, 'DisplayName', '储能剩余能量');
-% xlabel('时间 (小时)');
-% ylabel('功率 (标幺值)');
-% legend('show');
-% grid on;
+figure
+plot(1:24, P_sum, 'b-o', 'LineWidth', 2, 'DisplayName', '功率');
+xlabel('时间 (小时)');
+ylabel('功率 (标幺值)');
+legend('show');
+grid on;
+
+figure
+plot(1:25, Ees1, 'b-o', 'LineWidth', 2, 'DisplayName', '储能剩余能量');
+xlabel('时间 (小时)');
+ylabel('功率 (标幺值)');
+legend('show');
+grid on;
