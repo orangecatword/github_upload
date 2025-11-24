@@ -1,7 +1,7 @@
 % clear 
 % clc
 % warning off
-function[objective,Psum_loss,Psum_load,U] = function2(Lc_pes1,Lc_pes2,Lc_pes3, Ees_max1,Ees_max2,Ees_max3)
+function[objective,Psum_loss,Psum_load,U] = function3(Lc_pes1,Lc_pes2,Lc_pes3, Ees_max1,Ees_max2,Ees_max3)
 
 %% 1.设参
 mpc = case33bw;
@@ -187,13 +187,14 @@ for t=1:T
         Constraints=[Constraints,sum(Zij,1) <= 32];
         % Constraints=[Constraints,sum(Zij,1) <= 30];
         % sum(Zij(1:37)) == 32 
-        Constraints = [Constraints, Zij(1:29,1) == 1]; 
-        Constraints = [Constraints, Zij(31:32,1) == 1];
-        % Constraints=[Constraints,Zij(5,1) == 0]; 
+        Constraints = [Constraints, Zij(1:4,1) == 1]; 
+        Constraints = [Constraints, Zij(6:27,1) == 1];
+        Constraints = [Constraints, Zij(29:32,1) == 1];
+        Constraints=[Constraints,Zij(5,1) == 0]; 
         % Constraints=[Constraints,Zij(14,1) == 0];
         % Constraints=[Constraints,Zij(15,1) == 0]; 
-        % Constraints=[Constraints,Zij(28,1) == 0]; 
-        Constraints=[Constraints,Zij(30,1) == 0]; 
+        Constraints=[Constraints,Zij(28,1) == 0]; 
+        % Constraints=[Constraints,Zij(30,1) == 0]; 
         % Constraints=[Constraints,Zij(31,1) == 0]; 
 end
 Constraints=[Constraints,-M_2.*Zij*ones(1,T)<=Fij<=M_2.*Zij*ones(1,T)];
@@ -245,6 +246,7 @@ ops.cplex.mip.strategy.search = 1;  % 使用动态搜索
 ops.cplex.mip.tolerances.mipgap = 0.05;  % 放宽最优间隙
 ops.cplex.mip.tolerances.absmipgap = 1e-3; % 绝对间隙
 ops.cplex.mip.strategy.heuristicfreq = 50; % 调整启发式频率
+
 
 % 新加入
 ops.cplex.threads = 1;        % ⭐ 关键 限制每个 CPLEX 求解器仅用 1 线程

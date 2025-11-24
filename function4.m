@@ -1,7 +1,7 @@
 % clear 
 % clc
 % warning off
-function[objective,Psum_loss,Psum_load,U] = function2(Lc_pes1,Lc_pes2,Lc_pes3, Ees_max1,Ees_max2,Ees_max3)
+function[objective,Psum_loss,Psum_load,U] = function4(Lc_pes1,Lc_pes2,Lc_pes3, Ees_max1,Ees_max2,Ees_max3)
 
 %% 1.设参
 mpc = case33bw;
@@ -185,13 +185,14 @@ for t=1:T
         end     
     end
         Constraints=[Constraints,sum(Zij,1) <= 32];
-        % Constraints=[Constraints,sum(Zij,1) <= 30];
+        Constraints=[Constraints,sum(Zij,1) <= 31];
         % sum(Zij(1:37)) == 32 
-        Constraints = [Constraints, Zij(1:29,1) == 1]; 
+        Constraints = [Constraints, Zij(1:14,1) == 1]; 
+        Constraints = [Constraints, Zij(16:29,1) == 1];
         Constraints = [Constraints, Zij(31:32,1) == 1];
         % Constraints=[Constraints,Zij(5,1) == 0]; 
         % Constraints=[Constraints,Zij(14,1) == 0];
-        % Constraints=[Constraints,Zij(15,1) == 0]; 
+        Constraints=[Constraints,Zij(15,1) == 0]; 
         % Constraints=[Constraints,Zij(28,1) == 0]; 
         Constraints=[Constraints,Zij(30,1) == 0]; 
         % Constraints=[Constraints,Zij(31,1) == 0]; 

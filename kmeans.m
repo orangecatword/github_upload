@@ -69,19 +69,20 @@ center=C;
 %hold on;
 %plot(data(id==4,1),data(id==4,24),'*','Color',[rand(),rand(),rand()]);
 %hold on;
-figure;
-x1=1:1:n;%y1=1:1:24;
-for i=1:K
-    y1=i*ones(1,n);
-    plot3(x1,y1,center(i,:),'-*','Color',[rand(),rand(),rand()]);
-    hold on
-end
-     xlabel('时段');
+% figure;
+% x1=1:1:n;%y1=1:1:24;
+% for i=1:K
+%     y1=i*ones(1,n);
+%     plot3(x1,y1,center(i,:),'-*','Color',[rand(),rand(),rand()]);
+%     hold on
+% end
+%      xlabel('时段');
+% 
+%      ylabel('场景');
+% 
+%      zlabel('功率');
+%       grid on;
 
-     ylabel('场景');
-
-     zlabel('功率');
-      grid on;
 for i=1:K
 k(i)=length(find(id==i))/m;
 end

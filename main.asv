@@ -26,14 +26,15 @@ end
 % f_sum = sum(f); % 最终的目标函数
 
 %% up
+tic
 for i = 1:4
-    tic
-    f = up(pv(i,:),wind(i,:));% 风力光伏输入上层模型
-    toc
+    f = up(pv(i,:),wind(i,:));
+    % f = up(pv(i,:),wind(i,:)); % 风力光伏输入上层模型
     % f2 = function2(pv(i,:),wind(i,:));
     % f3 = function3(pv(i,:),wind(i,:));
     % f4 = function4(pv(i,:),wind(i,:));
     % f5 = function5(pv(i,:),wind(i,:));
 end
+toc
 
 % 最后的f是储能成本+上面的f(场景要根据天数加权,不同典型场景也要加权)

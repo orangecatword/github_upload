@@ -20,8 +20,15 @@ pv = [0 0 0 0 0 0.185 0.195 0.3 0.48 0.63 0.7 0.76 0.83 0.76 0.7 0.63 0.48 0.3 0
 pv_lhs = repmat(pv,ns,1).*(1+0.2.*(y-0.5)); % repmat(pv,ns,1):把pv扩展为1000*24大小;(y-0.5):对服从特定分布的随机误差 yw 进行中心化调整
 % 1+0.2.*(y-0.5):1 是原本的出力值;y-0.5:偏差值中心化;0.2:相乘的系数
 data=pv_lhs;K=2;
-[Cv,kv] = kmeans(data,K);
 
+% allData = pv_lhs;
+% % 生成箱型图
+% figure
+% boxplot(allData)
+% title('光伏箱型图')
+% ylabel('出力值')
+
+[Cv,kv] = kmeans(data,K);
 
 %风电场景生成与聚类
 %pw超立方抽样+k-means聚类
@@ -43,6 +50,14 @@ pw = [1.4 1.53 1.45 1.34 1.26 1.13 1.03 0.75 0.55 0.35 0.45 0.43 0.35 0.32 0.30 
 % pw_lhs=repmat(pw,ns,1).*(1+0.3.*(yw-0.5));
 pw_lhs=repmat(pw,ns,1).*(1+0.2.*(yw-8.8623));% 8.8623为分布均值
 data=pw_lhs;K=2;
+
+% allData = pw_lhs;
+% % 生成箱型图
+% figure
+% boxplot(allData)
+% title('风力箱型图')
+% ylabel('出力值')
+
 [Cw,kw]=kmeans(data,K);
 
 % 以往论文中出现过这个思路:把这些不确定性变量生成的场景数都乘起来,得到场景总数
