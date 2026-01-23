@@ -1,12 +1,11 @@
 %% 断开五条边的故障特征量
 % 故障特征量计算只考虑当前故障时刻
-% 2025.12.20 无解情况：5 24	17	19	23;7	8	24	18	5;4	10	24	18	14;20	3	12	6 23;
-% 20	5	26	22	4;23	19	4	12	26;2	12	8	7	10;18	24	13	15	4
 % 推理结论:无解情况下断开的边大多是分叉前的支路
-function[objective] = function_fault_5()
+function[objective] = function_fault_5(Result)
+%% 现在状态-接入了六个风光元件-有作用 最大的聚类中心值从6.0536变为 2.4516,减少了负荷损失
 
 %% 1.设参
-mpc = case33bw2;
+mpc = case33bw1;
 pload = mpc.pload;% 负荷数据
 pload_prim = mpc.pload_prim/(1000*10);% 10为基准值 最后得到的负荷为标幺值
 qload_prim = mpc.qload_prim/(1000*10);
@@ -16,20 +15,16 @@ pload = pload/a;% 得到各个时段与单时段容量的比例系数
 qload = pload/b;% 假设有功负荷曲线与无功负荷曲线相同
 pload = pload_prim*pload;% 得到33*24的负荷值,每一个时间段每个节点的负荷
 qload = qload_prim*qload;
-
-% 选取9-12时作为故障隔离时间
+% 选取9时作为故障隔离时间
 pload = pload(:,9);
 qload = qload(:,9);
-
 branch = mpc.branch;         
 r=branch(:,3);         
 x=branch(:,4);            
-
 T = 1; %时段数为24小时-改为1小时,故障特征量计算只考虑故障隔离时段
 nb = 33;%节点数
 nl = 37;%支路数
-nc = 5; %联络开关数
-
+% nc = 5; %联络开关数
 upstream=zeros(33,37);%代表流入节点支路
 dnstream=zeros(33,37);%代表流出节点支路
 for i=1:32
@@ -40,28 +35,23 @@ upstream(15,34)=1;%支路34为15-9支路，流入节点15
 upstream(22,35)=1;%支路35为22-12支路，流入节点22
 upstream(33,36)=1;%支路36为33-18支路，流入节点33
 upstream(29,37)=1;%支路37为29-25支路，流入节点29
-
 for i=[1:17,19:21,23:24,26:32]
     dnstream(i,i)=1;
 end
 dnstream(2,18)=1;
 dnstream(3,22)=1;
 dnstream(6,25)=1;
- 
 % 5条流入，对应5条流出
 dnstream(8,33)=1;
 dnstream(9,34)=1;
 dnstream(12,35)=1;
 dnstream(18,36)=1;
 dnstream(25,37)=1;
-
 Umax=[1*1*ones(1,T);1.06*1.06*ones(32,T)];
 Umin=[1*1*ones(1,T);0.94*0.94*ones(32,T)];
-% Pgmax=[ones(1,T);zeros(32,T)];
-% Qgmax=[ones(1,T);zeros(32,T)];
 
-%% Gemini新加入
-%% 1. 重新定义物理出力限值
+
+%% 1. 重新定义物理出力限值(Gemini新加入)
 % 初始化所有节点出力上限为 0
 Pgmax = zeros(nb, T); 
 Qgmax = zeros(nb, T);
@@ -72,15 +62,19 @@ Qgmax(1, :) = 1.0;
 
 % (2) 定义分布式电源 (DER) 的物理容量
 % 建议容量设得略大于风光出力的峰值，以防逆变器限功率
-% 参照之前的分析：风机峰值约 1.5MW (0.15pu)，光伏峰值约 0.8MW (0.08pu)
+% 根据Case33bw,参照之前的分析：风机峰值约 1.5MW (0.15pu)，光伏峰值约 1MW (0.1pu)
 pv_nodes = [4, 7, 27];
 wt_nodes = [13, 17, 25];
-
-Pgmax(pv_nodes, :) = 0.15; % 给予 1.5MW 的逆变器容量空间
-Qgmax(pv_nodes, :) = 0.10; % 给予一定的无功补偿空间
-
-Pgmax(wt_nodes, :) = 0.20; % 风机容量稍大，给 2.0MW 空间
-Qgmax(wt_nodes, :) = 0.15;
+% Pgmax(pv_nodes, :) = 0.15; % 给予 1.5MW 的逆变器容量空间
+% Qgmax(pv_nodes, :) = 0.10; % 给予一定的无功补偿空间
+% Pgmax(wt_nodes, :) = 0.20; % 风机容量稍大，给 2.0MW 空间
+% Qgmax(wt_nodes, :) = 0.15;
+% pv_nodes = [7, 27];
+% wt_nodes = 12;
+Pgmax(pv_nodes, :) = 0.2; 
+Qgmax(pv_nodes, :) = 0.2; % 给予一定的无功补偿空间
+Pgmax(wt_nodes, :) = 0.2; 
+Qgmax(wt_nodes, :) = 0.2;
 %% 2.设变量
 U = sdpvar(nb,T);%电压的平方
 Iij = sdpvar(nl,T);%电流的平方
@@ -91,29 +85,26 @@ Qg = sdpvar(nb,T);%发电机无功
 P = sdpvar(nb,T);
 Q = sdpvar(nb,T);
 
-% 定义节点连通变量
-u = binvar(nb,T);
-lamda=sdpvar(33,T,'full');% 负荷损失的状态变量,这么定义的话 每个节点的负荷都是可调的 不太符合现实情况
-Zij=binvar(nl,T);%网架结构               
+u = binvar(nb,T);% 定义节点连通变量-判断节点是否正常运行
+lamda=sdpvar(33,T,'full');% 负荷损失的状态变量
+Zij=binvar(nl,T); % 网架结构               
 % Z0=[ones(nl-nc,1);zeros(nc,1)];%初始拓扑                      
 % assign(Zij,Z0);          
 
 % 确认风光的安装位置 风: 13 17 25 光: 4 7 27
 % Loc_pv_initial = [0 0 0 1 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0];
 % Loc_wt_initial = [0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 1 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0];
-Loc_pv_initial = [1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0];
-Loc_wt_initial = [0 0 0 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1];
-Ppv = (Loc_pv_initial/1)' * (mpc.pv(9)/10); % 标幺值
-Pwt = (Loc_wt_initial/1.5)' * (mpc.wind(9)/10);
-% 更换为聚类后的风光值
-% Ppv = (Loc_pv_initial/3)' * (pv/10); % 标幺值
-% Pwt = (Loc_wt_initial/3)' * (wind/10);
+% Loc_pv_initial = [0 1 1 1 1 1 1 1 1 1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0];
+% Loc_wt_initial = [0 0 0 0 0 0 0 0 0 0 0 0 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1];
+
+% Ppv = (Loc_pv_initial/1)' * (mpc.pv(9)/10); % 标幺值
+% Pwt = (Loc_wt_initial/1.5)' * (mpc.wind(9)/10);
 
 %% 3.设约束
-Constraints = [];    
+Constraints = [];
+
 %% 潮流约束
 %节点功率约束
-% Constraints = [Constraints, pload.*lamda-Ppv.*u-Pwt.*u - Pg  == upstream*Pij - upstream*(Iij.*(r*ones(1,T))) - dnstream*Pij];%节点注入有功
 Constraints = [Constraints, pload.*lamda - Pg  == upstream*Pij - upstream*(Iij.*(r*ones(1,T))) - dnstream*Pij];
 Constraints = [Constraints, qload.*lamda - Qg == upstream*Qij - upstream*(Iij.*(x*ones(1,T))) - dnstream*Qij];%节点注入无功
 
@@ -125,44 +116,78 @@ Constraints = [Constraints, U(branch(:,1),:) - U(branch(:,2),:) >= -M + 2*(r*one
 % 如果节点在线，电压在常规范围；如果节点离线，电压固定在 1.0
 % 这能极大地辅助求解器收敛
 V_nominal = 1.0^2;
-Constraints = [Constraints, u*(0.94^2) + (1-u)*V_nominal <= U <= u*(1.06^2) + (1-u)*V_nominal];
+%% Gemini建议-给离线节点的电压更大的自由度，而不是固定死-"虚拟电压"充当了数学缓冲垫,但是只解决了4，5； 12，13边相连的情况
+Constraints = [Constraints, u*(0.94^2) + (1-u)*(0.94^2) <= U, U <= u*(1.06^2) + (1-u)*(1.06^2)]; 
 %节点电压约束               
-Constraints = [Constraints, Umin <= U,U <= Umax]; % 首节点电压为1   
+Constraints = [Constraints, U(1, :) == 1.0]; % 首节点电压为1 
 %% 商品流约束-问题：出现了环流情况
 % 论文观点为,除开故障状况,否则32条主干支路无法随便关断
+% pg_st = [1 7 12 27]; 
 pg_st = [1 4 7 13 17 25 27];
+% pg_st = [1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33];
 Fij=sdpvar(37,T,'full'); 
 Wj=sdpvar(7,T,'full'); 
 M_2=50;
+
 for t=1:T
     for k=1:33
         if ~ismember(k,pg_st)
             node_out=branch(:,1)==k;
             node_in=branch(:,2)==k;
-            Constraints=[Constraints,sum(Fij(node_out,t))-sum(Fij(node_in,t))==-u(k,t)];  
+            Constraints=[Constraints,sum(Fij(node_out,t))-sum(Fij(node_in,t))==-u(k,t)];
+
+            Constraints = [Constraints, u(k,t) >= Iij(node_out, t)];
+            Constraints = [Constraints, u(k,t) >= Iij(node_in, t)];
+
         else
             node_out=branch(:,1)==k;
             node_in=branch(:,2)==k;
             Constraints=[Constraints,sum(Fij(node_out,t))-sum(Fij(node_in,t))==Wj(pg_st==k,t)-u(k,t)];
+
+            Constraints = [Constraints, u(pg_st,t) == 1];
+
         end     
     end
-        Constraints=[Constraints,sum(Zij,1) <= 32];
-        %Constraints=[Constraints,Zij(Result,t) == 0];
-        Constraints=[Constraints,Zij(4,t) == 0];
-        Constraints=[Constraints,Zij(5,t) == 0];
-        Constraints=[Constraints,Zij(9,t) == 0];
-        Constraints=[Constraints,Zij(20,t) == 0];
-        Constraints=[Constraints,Zij(22,t) == 0];
-        Constraints=[Constraints,sum(Zij(1:32,:),1) >= 27];
-       
+    % Constraints=[Constraints,sum(Zij,1) <= sum(u,1)-1]; % (新增)防止环流的点边约束
+        
+        Constraints=[Constraints,Zij(Result,t) == 0];
+        % Constraints=[Constraints,Zij(23,t) == 0];
+        % Constraints=[Constraints,Zij(18,t) == 0];
+        % Constraints=[Constraints,Zij(10,t) == 0];
+        % Constraints=[Constraints,Zij(5,t) == 0];
+        % Constraints=[Constraints,Zij(31,t) == 0];
 end
-Constraints=[Constraints,-M_2.*Zij<=Fij<=M_2.*Zij];
-Constraints=[Constraints,-M_2.*(2-Zij)<=Fij<=M_2.*(2-Zij)];
-% Constraints=[Constraints,Wj>=1];
-Constraints = [Constraints, 0 <= Wj <= M_2 .* u(pg_st, :)];
+Constraints=[Constraints,sum(Zij,1) <= 32];
+Constraints=[Constraints,sum(Zij(1:32,:),1) >= 27]; 
+Constraints=[Constraints,-M_2.*Zij<=Fij,Fij<=M_2.*Zij];
+% Constraints=[Constraints,-M_2.*(2-Zij)<=Fij,Fij<=M_2.*(2-Zij)];
+
+for i = 1:size(pg_st, 2)
+    node_idx = pg_st(i);
+    % 只要该 DER 节点在线，其供应量 Wj 就必须至少为 1（供应自己）
+    Constraints = [Constraints, Wj(i, :) >= u(node_idx, :)];
+end
+Constraints = [Constraints, 0 <= Wj, Wj <= M_2 .* u(pg_st, :)];
 for t = 1:T
     Constraints = [Constraints, sum(Wj(:,t)) == sum(u(:,t))];
 end
+
+%% 节点状态与边状态最根本的约束
+% for t = 1:T
+%     for k = 1:33
+%         idx_connected = find(branch(:,1) == k | branch(:,2) == k);
+%         if ~isempty(idx_connected)
+%             % 只要有一条边 Zij=1, u 就必须是 1
+%             Constraints = [Constraints, u(k,t) >= Zij(idx_connected, t)]; 
+%             % 只有当至少有一条边 Zij=1, u 才能是 1
+%             % 想法：断开了u也不一定为0 分布式电源直接接入给负荷供电;实验证明结论正确,但目前不了解底层原理
+%             % Constraints = [Constraints, u(k,t) <= sum(Zij(idx_connected, t))];
+%         else
+%             Constraints = [Constraints, u(k,t) == 0];
+%         end
+%     end
+% end
+
 %二阶锥约束  
 for i = 1:37
     for t = 1:T
@@ -173,10 +198,13 @@ end
 
 %% 通用约束
 %发电机功率约束           
-Constraints = [Constraints, -Pgmax.*u <= Pg,Pg <= u .* Pgmax,-Qgmax.*u <= Qg,Qg <= u .* Qgmax];
+% Constraints = [Constraints, -Pgmax.*u <= Pg,Pg <= u .* Pgmax,-Qgmax.*u <= Qg,Qg <= u .* Qgmax];
+Constraints = [Constraints, 0 <= Pg,Pg <= u .* Pgmax,-Qgmax.*u <= Qg,Qg <= u .* Qgmax];
 %% Gemini
-Constraints = [Constraints, Pg(pv_nodes, :) == Ppv(pv_nodes, :).*u(pv_nodes, :) ];
-Constraints = [Constraints, Pg(wt_nodes, :) == Pwt(wt_nodes, :).*u(pv_nodes, :) ];
+% Constraints = [Constraints, Pg(pv_nodes, :) == Ppv(pv_nodes, :).*u(pv_nodes, :) ];
+% Constraints = [Constraints, Pg(wt_nodes, :) == Pwt(wt_nodes, :).*u(pv_nodes, :) ];
+% Constraints = [Constraints, Pg(pv_nodes, :) <= Ppv(pv_nodes, :).*u(pv_nodes, :) ];
+% Constraints = [Constraints, Pg(wt_nodes, :) <= Pwt(wt_nodes, :).*u(wt_nodes, :) ];
 
 %%
 %支路电流约束-加上这个约束运算速度过慢
@@ -186,8 +214,7 @@ Constraints = [Constraints, -1.1*Zij <= Pij,Pij <= 1.1*Zij];
 % 不能给支路无功功率施加约束
 Constraints = [Constraints, -1.1*Zij <= Qij,Qij <= 1.1*Zij];
 % 负荷损失的状态变量
-Constraints=[Constraints,0<=lamda,lamda<=1];
-Constraints=[Constraints, lamda <= u];
+Constraints=[Constraints,0<=lamda,lamda<=u];
 
 % 定义负荷重要程度-参考论文:刘佳昕_极端灾害下有功-无功协同优化的两阶段配电网韧性提升策略
 Importance = [1 1 5 2 1 2 1 1 1 5 5 2 1 1 2 1 1 2 2 1 2 2 2 5 1 1 1 1 1 2 5 1 2];
@@ -199,6 +226,7 @@ ploss_cost = 3;
 % objective = ploss_cost * sum(sum(Iij.*(r*ones(1,T)))) + pload_cost * sum(sum(Importance'*ones(1,4).*(pload-lamda.*pload)));
 wload = 0.9; wnet = 0.1;
 objective = wnet*sum(sum(Iij.*(r*ones(1,T)))) + wload*sum(sum(pload))+wload*sum(sum(-lamda.*pload));
+
 %% 5.设求解器
 % tic
 ops = sdpsettings('solver', 'cplex', 'verbose', 0);
@@ -208,12 +236,15 @@ ops.cplex.workmem = 4096;
 ops.cplex.mip.tolerances.mipgap = 0.02;  % 放宽最优间隙
 % ops.cplex.parallel = 1;  % 启用并行计算
 ops.cplex.mip.strategy.search = 1;  % 使用动态搜索
-ops.cplex.mip.strategy.heuristicfreq = 10; % 调整启发式频率
+ops.cplex.parallel = 0;       % ⭐ 关键 禁用 CPLEX 内部并行
+ops.cplex.nodefileind = 2;    % 启用节点压缩磁盘文件
+ops.cplex.mip.strategy.heuristicfreq = 50; % 调整启发式频率
 
 % 新加入
 ops.cplex.threads = 1;        % ⭐ 关键 限制每个 CPLEX 求解器仅用 1 线程
 ops.cplex.parallel = 0;       % ⭐ 关键 禁用 CPLEX 内部并行
 ops.cplex.nodefileind = 2;    % 启用节点压缩磁盘文件
+
 sol=optimize(Constraints,objective,ops);
 objective = 100*value(objective);
 
@@ -224,11 +255,12 @@ if sol.problem == 0
     disp('succcessful solved');
 else
     disp('error');
-    yalmiperror(sol.problem) 
+    yalmiperror(sol.problem)
 end
 %% 8.得到运行结果
 U = value(U);Iij = value(Iij);Pij = value(Pij);Qij = value(Qij);Pg = value(Pg);
 Zij = value(Zij);lamda = value(lamda);Fij = value(Fij);Wj = value(Wj);
+u = value(u);
 P = value(pload.*lamda - Pg);
 Q = value(qload.*lamda - Qg);
 
@@ -247,7 +279,7 @@ Q = value(qload.*lamda - Qg);
 % ylabel('节点序号');
 % zlabel('线路电流（pu）');
 % title('24小时线路电流标幺值图');    
-% 
+
 % figure(3)
 % [XX,YY] =meshgrid(1:4,1:37);
 % mesh(XX,YY,Pij);
@@ -255,7 +287,7 @@ Q = value(qload.*lamda - Qg);
 % ylabel('节点序号');
 % zlabel('线路有功功率（pu）');
 % title('24小时线路有功功率标幺值图');    
-% 
+
 % figure(4)
 % [XX,YY] =meshgrid(1:4,1:37);
 % mesh(XX,YY,Qij);
@@ -263,7 +295,7 @@ Q = value(qload.*lamda - Qg);
 % ylabel('节点序号');          
 % zlabel('线路无功功率（pu）');      
 % title('24小时线路无功功率标幺值图');       
-% 
+
 % figure(5)
 % [XX,YY] =meshgrid(1:4,1:37);
 % mesh(XX,YY,Qij);

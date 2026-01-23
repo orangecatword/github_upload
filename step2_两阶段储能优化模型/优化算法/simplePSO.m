@@ -1,14 +1,14 @@
-%% 33维PSO算法（每个个体仅3个非零变量）
-%% 试试位置和容量作为两套变量进行优化 二进制粒子群+量子粒子群算法
+%% 33维PSO算法（每个个体仅3个非零变量）-simplePSO在x值的迭代变化中还存在一些问题，后续研究改进时需要注意
 %% 先选出三个最优位置，在去解容量
+% 2026.1.13 之后再simplePSO 与simpleGWO中加入自适应w算子
 
 
 function[fy_max] = simplePSO(~,~)
 
 %% 参数设置
-N = 40;                 % 种群个数
+N = 10;                 % 种群个数
 d = 33;                 % 维度
-ger = 5;              % 最大迭代次数
+ger = 10;              % 最大迭代次数
 % limit = [0.1, 0.3];  % 位置边界
 % vlimit = [-0.02, 0.02];   % 速度边界
 limit = [0.8, 1.2];  % 位置边界
@@ -16,16 +16,23 @@ vlimit = [-0.1, 0.1];   % 速度边界
 w = 0.8;                % 惯性权重
 c1 = 0.5;               % 自我学习因子
 c2 = 0.5;               % 群体学习因子
-
+forbidden_idx = [1 7 12 27];   % 禁止布置储能的位置
+%% 新增自适应权重
+% 定义权重范围
+w_max = 1; 
 %% 初始化种群
 x = limit(1) + (limit(2) - limit(1)) .*rand(N, d);
 v = 0.04*rand(N, d);
+x_cun = 0; % x的中介值
 
 % 位置范围(从-5~5 到0.1~0.3 缩小50倍)和速度大小需要调节
 
-% 强制每个个体仅3个非零变量
+% 强制每个个体去掉禁止位置外仅选择 3 个非零变量
 for i = 1:N
-    idx = randperm(d, 3);
+    all_idx = 1:d;
+    allowed_idx = setdiff(all_idx, forbidden_idx);
+    idx = allowed_idx(randperm(length(allowed_idx), 3));
+
     mask = false(1, d);
     mask(idx) = true;
     x(i, ~mask) = 0;
@@ -38,41 +45,85 @@ fy_max = inf;                  % 全局最优适应度
 record = zeros(ger,1);      % 记录适应度变化
 
 %% PSO迭代
+tic
 for iter = 1:ger
-    tic
+    for i = 1:N
+        % ===== 1️⃣ 找出非零元素位置与数值 =====
+        idx_x(i,:) = find(x(i,:) ~= 0);      % 非零元素索引
+        vals_x(i,:) = x(i,idx_x(i,:));  
+    end
     % 此时fx应该是外层目标函数-由于论文中没有提及,则定义w_F,ESS;w_F,load;w_F,net分别为1/3
     %% 外层目标函数
-    fx = 2/3*down(x) ; % 加上储能成本,成本为100美元/千瓦时=100万美元/10MWh
-    toc
+    fx = down(x) ; % 加上储能成本,成本为100美元/千瓦时=100万美元/10MWh
     % 更新个体最优
+    for i = 1:N
+        % ===== 1️⃣ 找出非零元素位置与数值 =====
+        idx_x(i,:) = find(x(i,:) ~= 0);      % 非零元素索引
+        vals_x(i,:) = x(i,idx_x(i,:));  
+    end
     better = fx < fx_max;
     fx_max(better) = fx(better);
     x_max(better, :) = x(better, :);
     
+    for i = 1:N
+        % ===== 1️⃣ 找出非零元素位置与数值 =====
+        idx_xmax(i,:) = find(x_max(i,:) ~= 0);      % 非零元素索引
+        vals_xmax(i,:) = x_max(i,idx_xmax(i,:));  
+    end
     % 更新全局最优
     [minval, nmin] = min(fx_max);
     if minval < fy_max
         fy_max = minval;
         y_max = x_max(nmin, :);
     end
-    
+    idx_ymax(1,:) = find(y_max(1,:) ~= 0);      % 非零元素索引
+    vals_ymax(1,:) = y_max(1,idx_ymax(1,:));
+
     % 速度与位置更新
     v = w*v + c1*rand*(x_max - x) + c2*rand*(repmat(y_max, N, 1) - x);
     v(v > vlimit(2)) = vlimit(2);
     v(v < vlimit(1)) = vlimit(1);
-    x = x + v;
+    x = x_cun + v;
     x(x > limit(2)) = limit(2);
-    x(x < limit(1)) = limit(1);
+    % x(x < limit(1)) = limit(1);
     
     % 保证每个个体只有3个非零元素-矩阵稀疏化,只保证矩阵中最大的三个元素非零-这不就导致每一行的储能位置固定住了;缺陷2:迭代后期是否应该逐渐收敛 
+    % for i = 1:N
+    %     [~, idx] = sort(abs(x(i,:)), 'descend');
+    %     mask = false(1, d);
+    %     mask(idx(1:3)) = true;
+    %     x(i, ~mask) = 0;
+    % end
+
+    % 改进的矩阵稀疏化，使其可以避免选择分布式电源位置
     for i = 1:N
-        [~, idx] = sort(abs(x(i,:)), 'descend');
+        % ---------- 1. 强制禁止位置为 0 ----------
+        x(i, forbidden_idx) = 0;
+        x_cun = x;
+        % ---------- 2. 找可选位置 ----------
+        allowed_idx = setdiff(1:d, forbidden_idx);
+        % ---------- 3. 只在允许位置中选最大的 3 个 ----------
+        [~, idx] = sort(abs(x(i, allowed_idx)), 'descend');
+            % % 引入扰动：50%概率选前3，50%概率选前6里的随机3个
+            % if rand > 0.5
+            %     keep_idx = idx(1:3); 
+            % else
+            % % 在前6名里随机挑3个，增加变数
+            % pool = idx(1:min(6, length(idx)));
+            % keep_idx = pool(randperm(length(pool), 3));
+            % end
+            % mask = false(1, d);
+            % mask(allowed_idx(keep_idx)) = true;
+            % x(i, ~mask) = 0;
         mask = false(1, d);
-        mask(idx(1:3)) = true;
+        mask(allowed_idx(idx(1:3))) = true;
+        % ---------- 4. 稀疏化 ----------
         x(i, ~mask) = 0;
     end
-    
-    % 记录与可视化
+
+
+  % 记录与可视化
+    figure(5)
     record(iter) = fy_max;
     subplot(1,2,1);
     bar(y_max);
@@ -85,14 +136,14 @@ for iter = 1:ger
     pause(0.05);
 end
 
-
+toc
 %% 输出结果
 disp(['最优值：', num2str(fy_max)]);
 disp(['最优变量（仅前10维显示）：', num2str(y_max(1:10))]);
 disp(['非零变量索引：', num2str(find(y_max~=0))]);
 disp(['非零变量取值：', num2str(y_max(y_max~=0))]);
 
-figure(7);
+figure(6);
 subplot(1,2,1); bar(y_max); title('最终最优变量分布');
 subplot(1,2,2); plot(record, 'LineWidth', 1.5); title('适应度收敛曲线');
 end

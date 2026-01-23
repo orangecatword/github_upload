@@ -1,0 +1,78 @@
+function[objective] = down_capacity(x)
+
+%% 功能：将1×33向量分解为3个独热向量 + 非零值列表
+% 样本数N 
+N = 20;
+objective = zeros(N,1);
+vals = zeros(1,3); 
+% 建立20个样本
+for i = 1:N
+% ===== 1️⃣ 找出非零元素位置与数值 =====   
+% 非零元素索引
+vals(1,:) = x(i,:);           % 非零元素取值
+
+% ===== 2️⃣ 构造3×33的独热矩阵 =====
+% Lc_pes = zeros(length(idx), length(x(i,:)));
+% for j = 1:length(idx)
+%     Lc_pes(j, idx(j)) = 1;
+% end
+
+% ===== 3️⃣ 非零值向量 =====
+% Ees_max = vals(:);   % 转为列向量 (3×1)
+
+% ===== 4️⃣ 拆分为单独变量 =====
+% 独热矩阵逐行拆分
+% Lc_pes1 = Lc_pes(1, :);
+% Lc_pes2 = Lc_pes(2, :);
+% Lc_pes3 = Lc_pes(3, :);
+
+% 非零值逐个拆分
+% Ees_max1 = Ees_max(1);
+% Ees_max2 = Ees_max(2);
+% Ees_max3 = Ees_max(3);
+
+%% 同时考虑N-1 N-2 N-5场景时,一定要注意权重(N-5损失远大于N-1 N-2)
+% vals = [1.18008881953534	0.952623382837203	0.874749041821752];
+
+    % ---------- 1. 启动并行池（只会启动一次） ----------
+    pool = gcp('nocreate');
+    if isempty(pool)
+        parpool('local',4);   % 4 核并行
+    end
+
+    % ---------- 2. 并行提交任务 ----------
+    futures(1) = parfeval(@function2, 3, vals);
+    futures(2) = parfeval(@function3, 3, vals);
+    futures(3) = parfeval(@function4, 3, vals);
+    futures(4) = parfeval(@function5, 3, vals);
+
+    % ---------- 3. 预分配 ----------
+    f_all   = zeros(4,1);
+    r_load  = zeros(4,1);
+    V_bias  = zeros(4,1);
+
+    % ---------- 4. 异步收集结果 ----------
+    for k = 1:4
+        [idx, fval, r_val, v_val] = fetchNext(futures);
+        f_all(idx)  = fval;
+        r_load(idx) = r_val;
+        V_bias(idx) = v_val;
+    end
+
+    % ---------- 5. 输出附加信息 ----------
+    details.r_load = r_load;
+    details.V_bias = V_bias;
+
+
+
+
+
+% % 故障恢复率
+% rload = 1- (Psum_load2+Psum_load3+Psum_load4+Psum_load5)./(4*Pload_total);
+% % 电压偏差
+% deltaU = sum(sum(abs(U-U2)+abs(U-U3)+abs(U-U4)+abs(U-U5)));
+objective(i,:) = f2+f3+f4+f5;
+end
+
+
+

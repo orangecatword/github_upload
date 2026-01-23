@@ -3,8 +3,8 @@
 function [fy_max] = PSO_combination(~,~)
 
 %% ================= 参数设置 =================
-N   = 20;          % 粒子数
-ger = 20;          % 迭代次数
+N   = 10;          % 粒子数
+ger = 10;          % 迭代次数
 k   = 3;           % 每个粒子选择 3 个位置
 D   = 33;          % 候选位置总数
 
@@ -87,8 +87,8 @@ for iter = 1:ger
     end
 
     %% --------- 记录 ----------
+    figure(5)
     record(iter) = fy_max;
-
     subplot(1,2,1);
     bar(accumarray(y_max',1,[D,1]));
     title(['迭代 ',num2str(iter),' - 最优选址分布']);
@@ -105,10 +105,10 @@ end
 disp(['最优目标值：', num2str(fy_max)]);
 disp(['最优选址索引：', num2str(y_max)]);
 
-figure;
+figure(6);
 subplot(1,2,1);
 bar(accumarray(y_max',1,[D,1]));
-title('最终选址结果');
+title('PSO_combination最终选址结果');
 
 subplot(1,2,2);
 plot(record,'LineWidth',1.5);

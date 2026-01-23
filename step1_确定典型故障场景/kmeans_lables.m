@@ -4,57 +4,44 @@ function [C, k, labels] = kmeans_lables(data, K)  % 增加输出变量 labels
 %   C - 聚类中心(K×n 矩阵)
 %   k - 各簇样本占比(1×K 向量)
 %   labels - 每个数据点对应的类别标签(m×1 向量)
-
-[m, n] = size(data); % 求输入数据点的个数m 特征为n
-labels = zeros(m, 1); % 初始化类别标签向量 (原变量名id改为更直观的labels)
-
-% 随机初始化聚类中心
-C = zeros(K, n);
-for i = 1:K
-    C(i, :) = data(randi(m, 1), :); % 随机选择数据点作为初始中心
-end
-
-for iter = 1:100 % 最大迭代次数
-    % 分配簇 - 计算每个点到聚类中心的距离
-    for x = 1:m
-        d = zeros(1, K); % 预分配距离向量
+    [m, n] = size(data);
+    max_iter = 100;
+    tol = 1e-6; % 更加通用的收敛阈值
+    
+    % 1. 随机初始化 (避免重复选择同一个点)
+    rand_idx = randperm(m, K);
+    C = data(rand_idx, :);
+    labels = zeros(m, 1);
+    
+    for iter = 1:max_iter
+        old_C = C;
+        
+        % 2. 分配簇 (向量化计算，提高速度)
+        % 计算每个点到每个中心的欧氏距离平方
+        dist_sq = sum(data.^2, 2) - 2 * data * C' + sum(C.^2, 2)';
+        [~, labels] = min(dist_sq, [], 2);
+        
+        % 3. 更新聚类中心
         for y = 1:K
-            d(y) = norm(data(x, :) - C(y, :)); 
-        end
-        [~, idx] = min(d); % 找到最近的聚类中心
-        labels(x) = idx;   % 记录数据点所属类别
-    end
-    
-    % 更新聚类中心
-    new_C = zeros(K, n);
-    num = zeros(K, 1); % 每类样本计数
-    q = 0;             % 收敛计数器
-    
-    for y = 1:K
-        % 计算新聚类中心
-        for x = 1:m
-            if labels(x) == y
-                new_C(y, :) = new_C(y, :) + data(x, :);
-                num(y) = num(y) + 1;
+            relevant_points = data(labels == y, :);
+            if ~isempty(relevant_points)
+                C(y, :) = mean(relevant_points, 1);
+            else
+                % 处理空簇：如果某簇为空，重新随机选一个点作为中心
+                C(y, :) = data(randi(m), :);
             end
         end
-        new_C(y, :) = new_C(y, :) / num(y);
         
-        % 检查是否收敛
-        if norm(new_C(y, :) - C(y, :)) < 0.1
-            q = q + 1;
+        % 4. 检查收敛 (判断总位移量)
+        if norm(C - old_C, 'fro') < tol
+            fprintf('在第 %d 次迭代时收敛。\n', iter);
+            break;
         end
     end
     
-    % 检查所有聚类中心是否收敛
-    if q == K
-        break;
-    else
-        C = new_C;
+    % 计算各类样本占比
+    k = zeros(1, K);
+    for i = 1:K
+        k(i) = sum(labels == i) / m;
     end
-end
-
-% 计算各类样本占比
-for i = 1:K
-    k(i) = length(find(labels == i)) / m;
 end
