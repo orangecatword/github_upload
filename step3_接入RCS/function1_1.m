@@ -220,7 +220,7 @@ Fij=sdpvar(37,T,'full');
 Wj=sdpvar(7,T,'full'); 
 M_2=50;
 
-A = 1:32;        % 定义集合A: [1,2,3,...,33]
+A = 1:32;        % 定义集合A: [1,2,3,...,32]
 % RCS = [14,20 21];
 B = A(~ismember(A, RCS));  % 获取不属于RCS的元素
 C = B(~ismember(B, [1]));  
@@ -317,7 +317,7 @@ ops.cplex.nodefileind = 2;    % 启用节点压缩磁盘文件
 sol=optimize(Constraints,objective,ops);
 
 % 目标函数值
-objective = 100*value(objective);
+objective = value(objective);
 % 节点状态值
 u = value(u);
 %% 6.输出AMPL模型

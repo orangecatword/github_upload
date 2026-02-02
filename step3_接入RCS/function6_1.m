@@ -3,7 +3,7 @@
 % warning off
 %% 按照文章统一参数
 function[objective,r_load,V_bias] = function6_1(RCS)
-% function[objective,Psum_loss,Psum_load,U] = function6_1(Lc_pes1,Lc_pes2,Lc_pes3, Ees_max1,Ees_max2,Ees_max3)
+% function[objective,Psum_loss,Psum_load,U] = function7_1(Lc_pes1,Lc_pes2,Lc_pes3, Ees_max1,Ees_max2,Ees_max3)
 
 %% 1.设参
 mpc = case33bw2;
@@ -219,12 +219,11 @@ pg_st = [1 7 12 27 es_nodes];
 Fij=sdpvar(37,T,'full'); 
 Wj=sdpvar(7,T,'full'); 
 M_2=50;
-
-A = 1:32;        % 定义集合A: [1,2,3,...,33]
-% RCS = [14,20 21];
+A = 1:32;        % 定义集合A: [1,2,3,...,32]
+% RCS = [14,20,21];
 B = A(~ismember(A, RCS));  % 获取不属于RCS的元素
-C = B(~ismember(B, [16,30]));  
-% C = A(~ismember(A, [16,30])); 
+C = B(~ismember(B, [7 28 18 30 15]));  
+% C = A(~ismember(A, [7 28 18 30 15]));  
 for t=1:T
     for k=1:33
         if ~ismember(k,pg_st)
@@ -240,13 +239,13 @@ for t=1:T
             Constraints = [Constraints, u(pg_st,t) == 1]; 
         end     
     end
-        Constraints=[Constraints,Zij(16,t) == 0];
-        Constraints=[Constraints,Zij(30,t) == 0]; 
-        % Constraints=[Constraints,Zij(RCS,t) >= 0]; 
-        % Constraints=[Constraints,Zij(RCS,t) <= 1];
+        % Constraints=[Constraints,Zij(Result,t) == 0];
+        Constraints=[Constraints,Zij(7,t) == 0];
+        Constraints=[Constraints,Zij(28,t) == 0];
+        Constraints=[Constraints,Zij(18,t) == 0];
+        Constraints=[Constraints,Zij(30,t) == 0];
+        Constraints=[Constraints,Zij(15,t) == 0];
         Constraints=[Constraints,Zij(C,t) == 1];
-        %% 如果是正常运行W 与 F自然而然就是整数，问题就是如何在非强制的情况下避免环路？
-        % Constraints=[Constraints,Zij(34,t) == 0];  
 end
 % Constraints=[Constraints,sum(Zij,1) <= sum(u,1)-1]; % 新增防止环流的点边约束
 Constraints=[Constraints,sum(Zij,1) <= 32];
@@ -318,7 +317,7 @@ ops.cplex.nodefileind = 2;    % 启用节点压缩磁盘文件
 sol=optimize(Constraints,objective,ops);
 
 % 目标函数值
-objective = 100*value(objective);
+objective = value(objective);
 % 节点状态值
 u = value(u);
 %% 6.输出AMPL模型

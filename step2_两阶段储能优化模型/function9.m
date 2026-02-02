@@ -101,6 +101,9 @@ Zij=binvar(nl,T);%网架结构
 % 储能状态
 Ies_c = binvar(3, T,'full');% 充电状态
 Ies_dc = binvar(3, T,'full');% 放电状态
+
+% Ies_c = binvar(3, T,'full');% 充电状态
+% Ies_dc = binvar(3, T,'full');% 放电状态
 % Ies_c1 = binvar(1, T,'full');% 充电状态
 % Ies_dc1 = binvar(1, T,'full');% 放电状态
 % Ies_c2 = binvar(1, T,'full');% 充电状态
@@ -116,7 +119,8 @@ Ees_max = Ees_max';
 % Ees_max2 = 1;
 % Ees_max3 = 1;
 % 储能设备剩余能量
-Ees = sdpvar(3, T+1,'full'); 
+Ees = sdpvar(3, T+1,'full');
+% Ees = sdpvar(3, T+1,'full'); 
 % Ees1 = sdpvar(1, T+1,'full'); 
 % Ees2 = sdpvar(1, T+1,'full');
 % Ees3 = sdpvar(1, T+1,'full');
@@ -129,6 +133,9 @@ Ees = sdpvar(3, T+1,'full');
 % 储能功率
 Pes_c = sdpvar(3, T,'full');% 充电功率
 Pes_dc = sdpvar(3, T,'full');% 放电功率
+% Pes_c = sdpvar(3, T,'full');% 充电功率
+% Pes_dc = sdpvar(3, T,'full');% 放电功率
+
 % Pes_c1 = sdpvar(1, T,'full');% 充电功率
 % Pes_dc1 = sdpvar(1, T,'full');% 放电功率
 % Pes_c2 = sdpvar(1, T,'full');% 充电功率
@@ -237,11 +244,13 @@ for t=1:T
         end     
     end
         % Constraints=[Constraints,Zij(Result,t) == 0];
-        Constraints=[Constraints,Zij(5,t) == 0];
-        Constraints=[Constraints,Zij(4,t) == 0];
-        Constraints=[Constraints,Zij(29,t) == 0];
-        Constraints=[Constraints,Zij(32,t) == 0];
+        Constraints=[Constraints,Zij(17,t) == 0];
+        Constraints=[Constraints,Zij(8,t) == 0];
+        Constraints=[Constraints,Zij(2,t) == 0];
+        Constraints=[Constraints,Zij(25,t) == 0];
         Constraints=[Constraints,Zij(30,t) == 0];
+
+        % Constraints=[Constraints,Zij(34,t) == 0];
 end
 % Constraints=[Constraints,sum(Zij,1) <= sum(u,1)-1]; % 新增防止环流的点边约束
 Constraints=[Constraints,sum(Zij,1) <= 32];
@@ -293,9 +302,13 @@ Constraints=[Constraints,0<=lamda,lamda <= u];
 % 同时考虑停电负荷和电网损耗的单位成本(单位:美元/千瓦时=万美元/10MWh)
 pload_cost = 167;
 ploss_cost = 3;
-%% 4.设目标函数-内层的目标函数
+% Ees_cost = 100; % 电池配置价格 单位:万美元/10MWh  + Ees_cost*sum(Ees_max)
+
+%% 4.设目标函数-内层的目标函数-损耗成本+建设费用(单位:万美元)
 % objective = sum(sum(Iij.*(r*ones(1,T)))) + sum(sum(pload))+sum(sum(-lamda.*pload));%网损最小+负荷损失最小;可以在sum(sum(-lamda.*pload))前乘以负荷重要性矩阵
-objective = ploss_cost * sum(sum(Iij.*(r*ones(1,T)))) + pload_cost * sum(sum((pload-lamda.*pload)));
+ob1 = pload_cost * sum(sum((pload-lamda.*pload)));
+% objective = ploss_cost * sum(sum(Iij.*(r*ones(1,T)))) + pload_cost * sum(sum((pload-lamda.*pload)));
+objective = ploss_cost * sum(sum(Iij.*(r*ones(1,T)))) + ob1;
 % Psum_loss = sum(sum(Iij.*(r*ones(1,T))));
 r_load = sum(sum(lamda.*pload))/sum(sum(pload)); % 负荷恢复率
 V_bias = sum(abs(sqrt(U)-1))/33; % 电压偏差情况（分为四个周期）
@@ -313,7 +326,7 @@ ops.cplex.nodefileind = 2;    % 启用节点压缩磁盘文件
 sol=optimize(Constraints,objective,ops);
 
 % 目标函数值
-objective = 100*value(objective);
+objective = value(objective);
 % 节点状态值
 u = value(u);
 %% 6.输出AMPL模型

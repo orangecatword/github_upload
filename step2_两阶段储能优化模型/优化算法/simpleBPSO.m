@@ -1,19 +1,18 @@
 %% 离散粒子群算法（选址）-同时加入自适应权重与速度筛选
 function [fy_max] = simpleBPSO(~,~)
 
-%% ================= 参数设置 =================
-N = 10;              % 种群规模
-d = 33;              % 维度（33个候选位置）
-ger = 10;            % 迭代次数
-
-w  = 0.8;            % 惯性权重
-c1 = 0.5;            % 个体学习因子
-c2 = 0.5;            % 群体学习因子
+%% 参数设置
+N = 10;                 % 种群个数
+d = 33;                 % 维度
+ger = 10;               % 最大迭代次数
+vlimit = [-2, 2];   % 速度边界
+c1 = 0.5;               % 自我学习因子
+c2 = 0.5;               % 群体学习因子
+w  = 0.8;               % 惯性权重
 %% 新增自适应权重
 % 定义权重范围
-w_max = 0.9; 
+w_max = 1; 
 
-vlimit = [-4, 4];    % 速度边界（离散PSO中一般取较大）-想法:取大了,后续值和这个vlim
 % 定义禁止位置
 forbidden_idx = [1, 7, 12, 27]; 
 %% ================ 初始化 =====================
@@ -23,7 +22,6 @@ for i = 1:N
     all_idx = 1:d;
     allowed_idx = setdiff(all_idx, forbidden_idx);
     idx = allowed_idx(randperm(length(allowed_idx), 3));
-    
     x(i,idx) = 1;
 end
 
@@ -31,26 +29,23 @@ end
 v = randn(N,d);
 
 x_max  = x;                 % 个体历史最优
-fx_max = inf(N,1);          % 个体最优适应度
-
 y_max  = zeros(1,d);        % 全局最优
+fx_max = ones(N, 1)*inf;       % 个体历史最优适应度
 fy_max = inf;
-
 record = zeros(ger,1);
 
-%% ================= PSO 迭代 ==================
+%% ================= BPSO 迭代 ==================
 tic
 for iter = 1:ger
     %% --------- 目标函数 ----------
     % 离散位置进入外层目标函数
-    % fx = 2/3*down_position(x) + 1/3*100*sum(x,2); % 都是安装三个储能，所以无需考虑储能成本
     fx = down_position(x);
-    %% --------- 更新个体最优 ----------
+    % 更新个体最优
     better = fx < fx_max;
     fx_max(better) = fx(better);
     x_max(better,:) = x(better,:);
 
-    %% --------- 更新全局最优 ----------
+    % 更新全局最优
     [minval, idx] = min(fx_max);
     if minval < fy_max
         fy_max = minval;
@@ -58,11 +53,9 @@ for iter = 1:ger
     end
 
     %% --------- 更新速度 ----------
-    v = w*v ...
-        + c1*rand(N,d).*(x_max - x) ...
-        + c2*rand(N,d).*(repmat(y_max,N,1) - x);
-
-    v = max(min(v, vlimit(2)), vlimit(1)); % 不允许速度超过边界
+    v = w*v + c1*rand*(x_max - x) + c2*rand*(repmat(y_max, N, 1) - x);
+    v(v > vlimit(2)) = vlimit(2);
+    v(v < vlimit(1)) = vlimit(1);
 
     %% --------- 离散位置更新 ----------
     %%% 【改动3】Sigmoid 映射
@@ -86,15 +79,6 @@ for i = 1:N
         x(i, keep) = 1;
     elseif current_sum < 3
         % 2. 在当前为 0 的位置中寻找可添加的位置
-        % zero_idx = find(x(i,:) == 0);
-        % % --- 关键改动：从可选的零位置中剔除禁止的位置 ---
-        % allowed_zero_idx = setdiff(zero_idx, forbidden_idx);
-        % % 可选位置足够，补充到 3 个
-        % add_count = 3 - current_sum;
-        % add = allowed_zero_idx(randperm(length(allowed_zero_idx), add_count));
-        % x(i, add) = 1;
-
-
         % % --- 关键改动：依据速度 v 的大小进行排序补齐 ---
         zero_idx = find(x(i,:) == 0);
         % --- 关键改动：从可选的零位置中剔除禁止的位置 ---
@@ -115,7 +99,7 @@ end
     record(iter) = fy_max;
     subplot(1,2,1);
     bar(y_max);
-    title(['迭代 ',num2str(iter),' - 选址分布']);
+    title(['迭代',num2str(iter),' - 选址分布']);
     xlabel('位置编号'); ylabel('是否选中');
 
     subplot(1,2,2);

@@ -1,12 +1,12 @@
 %% 3维PSO算法
-function[fy_max] = simplePSO_3_test(~,~)
+function[fy_max] = simplePSO_3(~,~)
 
 %% 参数设置
 N = 10;                 % 种群个数
 d = 3;                 % 维度
 ger = 10;              % 最大迭代次数
-limit = [-100, 100]; 
-vlimit = [-20, 20];   % 速度边界
+limit = [0, 1];  % 位置边界
+vlimit = [-0.1, 0.1];   % 速度边界
 c1 = 0.5;               % 自我学习因子
 c2 = 0.5;               % 群体学习因子
 w = 0.8;                % 惯性权重
@@ -28,16 +28,9 @@ record = zeros(ger,1);      % 记录适应度变化
 for iter = 1:ger
     %% --- 方案 A：线性递减 (简单常用) ---
     % w = w_max - (w_max - w_min) * (iter / ger);
-
     tic
-    % 此时fx应该是外层目标函数-由于论文中没有提及,则定义w_F,ESS;w_F,load;w_F,net分别为1/3
-    % x = [0.896676514365533	0.852789317042534	1.03008343803139;0.961564858235246	1.17682023631019	0.823911817178862; 0.838581810067355	1.18245381609192	0.893911965348963];
     %% 外层目标函数
-    fx = sum(x.^2,2); % 加上储能成本,成本为100美元/千瓦时=100万美元/10MWh
-    % fx = sum(abs(x),2)+prod(abs(x),2); 
-    % for i = 1:N
-    %     fx(i,:) = max(abs(x(i,:)));
-    % end
+    fx = down_capacity(x);
     toc
     % 更新个体最优
     better = fx < fx_max;
@@ -83,7 +76,7 @@ disp(['最优变量（3维显示）：', num2str(y_max(1:3))]);
 disp(['非零变量索引：', num2str(find(y_max~=0))]);
 disp(['非零变量取值：', num2str(y_max(y_max~=0))]);
 
-% figure(6);
-% subplot(1,2,1); bar(y_max); title('最终最优变量分布');
-% subplot(1,2,2); plot(record, 'LineWidth', 1.5); title('适应度收敛曲线');
+figure(6);
+subplot(1,2,1); bar(y_max); title('最终最优变量分布');
+subplot(1,2,2); plot(record, 'LineWidth', 1.5); title('适应度收敛曲线');
 end

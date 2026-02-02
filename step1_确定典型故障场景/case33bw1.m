@@ -1,4 +1,4 @@
-function mpc = case33bw
+function mpc = case33bw1
 %CASE33BW  Power flow data for 33 bus distribution system from Baran & Wu
 %   Please see CASEFORMAT for details on the case file format.
 %

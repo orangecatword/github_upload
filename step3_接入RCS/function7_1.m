@@ -3,7 +3,7 @@
 % warning off
 %% 按照文章统一参数
 function[objective,r_load,V_bias] = function7_1(RCS)
-% function[objective,Psum_loss,Psum_load,U] = function7_1(Lc_pes1,Lc_pes2,Lc_pes3, Ees_max1,Ees_max2,Ees_max3)
+% function[objective,Psum_loss,Psum_load,U] = function8_1(Lc_pes1,Lc_pes2,Lc_pes3, Ees_max1,Ees_max2,Ees_max3)
 
 %% 1.设参
 mpc = case33bw2;
@@ -219,11 +219,11 @@ pg_st = [1 7 12 27 es_nodes];
 Fij=sdpvar(37,T,'full'); 
 Wj=sdpvar(7,T,'full'); 
 M_2=50;
-A = 1:32;        % 定义集合A: [1,2,3,...,33]
+A = 1:32;        % 定义集合A: [1,2,3,...,32]
 % RCS = [14,20 21];
 B = A(~ismember(A, RCS));  % 获取不属于RCS的元素
-C = B(~ismember(B, [10,24,1,2,19]));  
-% C = A(~ismember(A, [10,24,1,2,19]));  
+C = B(~ismember(B, [23 16 6 20 5]));  
+% C = A(~ismember(A, [23 16 6 20 5]));  
 for t=1:T
     for k=1:33
         if ~ismember(k,pg_st)
@@ -240,11 +240,11 @@ for t=1:T
         end     
     end
         % Constraints=[Constraints,Zij(Result,t) == 0];
-        Constraints=[Constraints,Zij(10,t) == 0];
-        Constraints=[Constraints,Zij(24,t) == 0];
-        Constraints=[Constraints,Zij(1,t) == 0];
-        Constraints=[Constraints,Zij(2,t) == 0];
-        Constraints=[Constraints,Zij(19,t) == 0];
+        Constraints=[Constraints,Zij(23,t) == 0];
+        Constraints=[Constraints,Zij(16,t) == 0];
+        Constraints=[Constraints,Zij(6,t) == 0];
+        Constraints=[Constraints,Zij(20,t) == 0];
+        Constraints=[Constraints,Zij(5,t) == 0];
         Constraints=[Constraints,Zij(C,t) == 1];
 end
 % Constraints=[Constraints,sum(Zij,1) <= sum(u,1)-1]; % 新增防止环流的点边约束
@@ -317,7 +317,7 @@ ops.cplex.nodefileind = 2;    % 启用节点压缩磁盘文件
 sol=optimize(Constraints,objective,ops);
 
 % 目标函数值
-objective = 100*value(objective);
+objective = value(objective);
 % 节点状态值
 u = value(u);
 %% 6.输出AMPL模型

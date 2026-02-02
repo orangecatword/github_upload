@@ -2,13 +2,13 @@
 %% 外层：组合位置搜索
 %% 内层：down(x) 精确模型（不变）
 
-function [Alpha_score, Alpha_pos, record] = EGWO_test(~,~)
+function [Alpha_score, Alpha_pos, record] = simpleEGWO_3(~,~)
 
 %% ================== 参数设置 ==================
 N   = 10;          % 种群规模
 d   = 3;          % 维度（IEEE33 节点）
 Max_iter = 10;     % 最大迭代次数
-limit = [-3, 100];   % 连续编码范围
+limit = [0, 1];   % 连续编码范围
 %% ================== 初始化种群 ==================
 x = limit(1) + (limit(2) - limit(1)) .* rand(N, d);
 %% ================== Alpha / Beta / Delta 初始化 ==================
@@ -27,31 +27,9 @@ record = zeros(Max_iter, 1);
 tic
 for iter = 1:Max_iter
     %% ---------- 适应度计算 ----------
-    % 单模态函数
-    % fx = sum(x.^2,2);                    % F1 范围:[-100,100]
-    % fx = sum(abs(x),2)+prod(abs(x),2);   % F2 范围:[-10,10]
-    % fx=zeros(N,1);
-    % for i = 1:N    
-    %     for j=1:d
-    %         fx(i,:)=fx(i,:)+sum(x(i,1:j))^2;% F3 范围:[-100,100]
-    %     end
-    % end
-    % for i = 1:N
-    %     fx(i,:) = max(abs(x(i,:)));      % F4 范围:[-100,100]
-    % end
-    for i = 1:N
-        fx(i,:)=sum(100*(x(i,2:d)-(x(i,1:d-1).^2)).^2+(x(i,1:d-1)-1).^2); % F5 范围:[-30,30]
-    end
-    % for i = 1:N  
-    %     fx(i,:)=sum(abs((x(i,:)+.5)).^2);  % F6 范围:[-100,100]
-    % end
-    % for i = 1:N  
-    %     fx(i,:)=sum([1:d].*(x(i,:).^4))+rand;% F7 范围:[-1.28, 1.28]
-    % end
-    % 多模态函数
-    % for i = 1:N 
-    %     fx(i,:)=sum(-x(i,:).*sin(sqrt(abs(x(i,:)))));% F8 范围:[-500, 500]
-    % end
+    tic
+    fx = down_capacity(x);
+    toc
     %% ---------- 更新 Alpha / Beta / Delta ----------
     for i = 1:N
         if fx(i) < Alpha_score

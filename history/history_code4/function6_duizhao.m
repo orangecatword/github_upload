@@ -1,9 +1,8 @@
 % clear 
 % clc
 % warning off
-%% 按照文章统一参数
-function[objective,r_load,V_bias] = function10(es_nodes,Ees_max)
-% function[objective,Psum_loss,Psum_load,U] = function10(Lc_pes1,Lc_pes2,Lc_pes3, Ees_max1,Ees_max2,Ees_max3)
+function[objective,Psum_loss,Psum_load,U] = function6_duizhao()
+% function[objective,Psum_loss,Psum_load,U] = function6(Lc_pes1,Lc_pes2,Lc_pes3,Ees_max1,Ees_max2,Ees_max3)
 
 %% 1.设参
 mpc = case33bw2;
@@ -63,18 +62,13 @@ Qgmax(1, :) = 1.0;
 % (2) 定义分布式电源 (DER) 的物理容量
 % 建议容量设得略大于风光出力的峰值，以防逆变器限功率
 % 根据Case33bw,参照之前的分析：风机峰值约 1.5MW (0.15pu)，光伏峰值约 1MW (0.1pu)
-pv_nodes = [7, 27];
-wt_nodes = 12;
-% pv_nodes = [4, 7, 27];
-% wt_nodes = [13, 17, 25];
-% es_nodes = [3, 22,32];
-% es_nodes = [18,24,30];
-Pgmax(pv_nodes, :) = 0.2; 
-Qgmax(pv_nodes, :) = 0.2; % 给予一定的无功补偿空间
+pv_nodes = [4, 7, 27];
+wt_nodes = [13, 17, 25];
+Pgmax(pv_nodes, :) = 0.15; 
+Qgmax(pv_nodes, :) = 0.10; % 给予一定的无功补偿空间
 Pgmax(wt_nodes, :) = 0.2; 
-Qgmax(wt_nodes, :) = 0.2;
-Pgmax(es_nodes, :) = 0.2; 
-Qgmax(es_nodes, :) = 0.2;
+Qgmax(wt_nodes, :) = 0.15;
+
 %% 2.设变量
 U = sdpvar(nb,T);%电压的平方
 Iij = sdpvar(nl,T);%电流的平方
@@ -92,115 +86,94 @@ Zij=binvar(nl,T);%网架结构
 % Z0=[ones(nl-nc,1);zeros(nc,1)];%初始拓扑                      
 % assign(Zij,Z0);          
 
-% 确认风光的安装位置 风: 12 光: 7 27
-% Loc_pv_initial = [0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0];
-% Loc_wt_initial = [0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0];
-% Ppv = (Loc_pv_initial/1)' * (mpc.pv(9:12)/10); % 计算得到标幺值
-% Pwt = (Loc_wt_initial/1.5)' * (mpc.wind(9:12)/10); % 除1.5是把风光机组拉到同一容量单位
+% 确认风光的安装位置 风: 13 17 25 光: 4 7 27
+Loc_pv_initial = [0 0 0 1 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0];
+Loc_wt_initial = [0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 1 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0];
+Ppv = (Loc_pv_initial/1)' * (mpc.pv(9:12)/10); % 计算得到标幺值
+Pwt = (Loc_wt_initial/1.5)' * (mpc.wind(9:12)/10); % 除1.5是把风光机组拉到同一容量单位
 
 % 储能状态
-Ies_c = binvar(3, T,'full');% 充电状态
-Ies_dc = binvar(3, T,'full');% 放电状态
-% Ies_c1 = binvar(1, T,'full');% 充电状态
-% Ies_dc1 = binvar(1, T,'full');% 放电状态
-% Ies_c2 = binvar(1, T,'full');% 充电状态
-% Ies_dc2 = binvar(1, T,'full');% 放电状态
-% Ies_c3 = binvar(1, T,'full');% 充电状态
-% Ies_dc3 = binvar(1, T,'full');% 放电状态
+Ies_c1 = binvar(1, T,'full');% 充电状态
+Ies_dc1 = binvar(1, T,'full');% 放电状态
+Ies_c2 = binvar(1, T,'full');% 充电状态
+Ies_dc2 = binvar(1, T,'full');% 放电状态
+Ies_c3 = binvar(1, T,'full');% 充电状态
+Ies_dc3 = binvar(1, T,'full');% 放电状态
 
-% 储能容量-根据论文修改
-Ees_max = Ees_max';
-% Ees_max = [1.0188;      1.0663;     0.84204];
-% Ees_max = ones(3,1);
-% Ees_max1 = 1; % 标幺值 实际为10MWh
-% Ees_max2 = 1;
-% Ees_max3 = 1;
+% 储能容量
+Ees_max1 = 0.3; % 标幺值 实际为3MWh
+Ees_max2 = 0.3;
+Ees_max3 = 0.3;
 % 储能设备剩余能量
-Ees = sdpvar(3, T+1,'full'); 
-% Ees1 = sdpvar(1, T+1,'full'); 
-% Ees2 = sdpvar(1, T+1,'full');
-% Ees3 = sdpvar(1, T+1,'full');
+Ees1 = sdpvar(1, T+1,'full'); 
+Ees2 = sdpvar(1, T+1,'full');
+Ees3 = sdpvar(1, T+1,'full');
 
 % 确认储能的安装位置  3  22 32
 % Lc_pes1 = [0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0];
 % Lc_pes2 = [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0];
 % Lc_pes3 = [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0];
 
+
+Lc_pes1 = [0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0];
+Lc_pes2 = [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0];
+Lc_pes3 = [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0];
 % 储能功率
-Pes_c = sdpvar(3, T,'full');% 充电功率
-Pes_dc = sdpvar(3, T,'full');% 放电功率
-% Pes_c1 = sdpvar(1, T,'full');% 充电功率
-% Pes_dc1 = sdpvar(1, T,'full');% 放电功率
-% Pes_c2 = sdpvar(1, T,'full');% 充电功率
-% Pes_dc2 = sdpvar(1, T,'full');% 放电功率
-% Pes_c3 = sdpvar(1, T,'full');% 充电功率
-% Pes_dc3 = sdpvar(1, T,'full');% 放电功率
+Pes_c1 = sdpvar(1, T,'full');% 充电功率
+Pes_dc1 = sdpvar(1, T,'full');% 放电功率
+Pes_c2 = sdpvar(1, T,'full');% 充电功率
+Pes_dc2 = sdpvar(1, T,'full');% 放电功率
+Pes_c3 = sdpvar(1, T,'full');% 充电功率
+Pes_dc3 = sdpvar(1, T,'full');% 放电功率
+
 %% 3.设约束
 Constraints = [];    
 %% 储能约束-可以取消充放电的功率和最好一致的约束，以增强储能供电能力
 Constraints = [Constraints;
-    Ies_c == 0;
-    Ies_dc == 1; % 储能状态约束
-    % sum(Pes_c) - sum(Pes_dc) == 0; % 充放电的功率和最好一致
-    Pes_c == 0;
-    Pes_c <= 0.1*Ies_c.*(Ees_max*ones(1,T)); % 储能容量的10% 
-    Pes_dc >= 0;
-    Pes_dc <= 0.1*Ies_dc.*(Ees_max*ones(1,T));
-    Ees(:,1) == 0.5*Ees_max;
-    Ees >= 0.2 * Ees_max*ones(1,T+1);
-    Ees <= 0.8 * Ees_max*ones(1,T+1)
+    Ies_c1 + Ies_dc1 <= 1; % 储能状态约束
+    % sum(Pes_c1) - sum(Pes_dc1) == 0; % 充放电的功率和最好一致
+    Pes_c1 >= 0;
+    Pes_c1 <= Ies_c1 * 0.1*Ees_max1; % 储能容量的10% 
+    Pes_dc1 >= 0;
+    Pes_dc1 <= Ies_dc1 * 0.1*Ees_max1;
+    Ees1(1) == 0.5*Ees_max1;
+    Ees1 >= 0.2 * Ees_max1;
+    Ees1 <= 0.8 * Ees_max1
     ];
 Constraints = [Constraints;
-    Ees(:, 2:T+1) == Ees(:, 1:T) + 0.9*Pes_c - 1.1*Pes_dc];
+    Ees1(2:T+1)==Ees1(1:T)+0.9*Pes_c1-1.1*Pes_dc1];
 
-% Constraints = [Constraints;
-%     Ies_c1 + Ies_dc1 <= 1; % 储能状态约束
-%     % sum(Pes_c1) - sum(Pes_dc1) == 0; % 充放电的功率和最好一致
-%     Pes_c1 >= 0;
-%     Pes_c1 <= Ies_c1 * 0.1*Ees_max1; % 储能容量的10% 
-%     Pes_dc1 >= 0;
-%     Pes_dc1 <= Ies_dc1 * 0.1*Ees_max1;
-%     Ees1(1) == 0.5*Ees_max1;
-%     Ees1 >= 0.2 * Ees_max1;
-%     Ees1 <= 0.8 * Ees_max1
-%     ];
-% Constraints = [Constraints;
-%     Ees1(2:T+1)==Ees1(1:T)+0.9*Pes_c1-1.1*Pes_dc1];
+Constraints = [Constraints;
+    Ies_c2 + Ies_dc2 <= 1; % 储能状态约束
+    % sum(Pes_c2) - sum(Pes_dc2) == 0; % 充放电的功率和最好一致
+    Pes_c2 >= 0;
+    Pes_c2 <= Ies_c2 * 0.1*Ees_max2; % 储能容量的10%
+    Pes_dc2 >= 0;
+    Pes_dc2 <= Ies_dc2 * 0.1*Ees_max2;
+    Ees2(1) == 0.5*Ees_max2;
+    Ees2 >= 0.2 * Ees_max2;
+    Ees2 <= 0.8 * Ees_max2
+    ];
+Constraints = [Constraints;
+    Ees2(2:T+1)==Ees2(1:T)+0.9*Pes_c2-1.1*Pes_dc2];
 
-% Constraints = [Constraints;
-%     Ies_c2 + Ies_dc2 <= 1; % 储能状态约束
-%     % sum(Pes_c2) - sum(Pes_dc2) == 0; % 充放电的功率和最好一致
-%     Pes_c2 >= 0;
-%     Pes_c2 <= Ies_c2 * 0.1*Ees_max2; % 储能容量的10%
-%     Pes_dc2 >= 0;
-%     Pes_dc2 <= Ies_dc2 * 0.1*Ees_max2;
-%     Ees2(1) == 0.5*Ees_max2;
-%     Ees2 >= 0.2 * Ees_max2;
-%     Ees2 <= 0.8 * Ees_max2
-%     ];
-% Constraints = [Constraints;
-%     Ees2(2:T+1)==Ees2(1:T)+0.9*Pes_c2-1.1*Pes_dc2];
-
-% Constraints = [Constraints;
-%     Ies_c3 + Ies_dc3 <= 1; % 储能状态约束
-%     % sum(Pes_c3) - sum(Pes_dc3) == 0; % 充放电的功率和最好一致
-%     Pes_c3 >= 0;
-%     Pes_c3 <= Ies_c3 * 0.1*Ees_max3; % 储能容量的10%
-%     % Pes_c3<= 0;
-%     Pes_dc3 >= 0;
-%     Pes_dc3 <= Ies_dc3 * 0.1*Ees_max3;
-%     Pes_dc3 >= 0.02;
-%     Pes_dc3 <= 0.03;
-%     Ees3(1) == 0.5*Ees_max3;
-%     Ees3 >= 0.2 * Ees_max3;
-%     Ees3 <= 0.8 * Ees_max3
-%     ];
-% Constraints = [Constraints;
-%     Ees3(2:T+1)==Ees3(1:T)+0.9*Pes_c3-1.1*Pes_dc3];
+Constraints = [Constraints;
+    Ies_c3 + Ies_dc3 <= 1; % 储能状态约束
+    % sum(Pes_c3) - sum(Pes_dc3) == 0; % 充放电的功率和最好一致
+    Pes_c3 >= 0;
+    Pes_c3 <= Ies_c3 * 0.1*Ees_max3; % 储能容量的10%
+    Pes_dc3 >= 0;
+    Pes_dc3 <= Ies_dc3 * 0.1*Ees_max3;
+    Ees3(1) == 0.5*Ees_max3;
+    Ees3 >= 0.2 * Ees_max3;
+    Ees3 <= 0.8 * Ees_max3
+    ];
+Constraints = [Constraints;
+    Ees3(2:T+1)==Ees3(1:T)+0.9*Pes_c3-1.1*Pes_dc3];
 
 %% 潮流约束
 % 节点功率约束
-Constraints = [Constraints, pload.*lamda - Pg== upstream*Pij - upstream*(Iij.*(r*ones(1,T))) - dnstream*Pij];
+Constraints = [Constraints, pload.*lamda - Pg + Lc_pes1' * Pes_c1 - Lc_pes1' * Pes_dc1 + Lc_pes2' * Pes_c2 - Lc_pes2' * Pes_dc2 + Lc_pes3' * Pes_c3 - Lc_pes3' * Pes_dc3 == upstream*Pij - upstream*(Iij.*(r*ones(1,T))) - dnstream*Pij];
 Constraints = [Constraints, qload.*lamda - Qg == upstream*Qij - upstream*(Iij.*(x*ones(1,T))) - dnstream*Qij];%节点注入无功
 % Constraints = [Constraints, P == pload.*lamda - Pg+ Lc_pes1' * Pes_c1 - Lc_pes1' * Pes_dc1 + Lc_pes2' * Pes_c2 - Lc_pes2' * Pes_dc2 + Lc_pes3' * Pes_c3 - Lc_pes3' * Pes_dc3];
 % Constraints = [Constraints, Q == qload.*lamda - Qg];
@@ -217,7 +190,7 @@ Constraints = [Constraints, U(1, :) == 1.0]; % 首节点电压为1
 
 %% 商品流约束-问题：出现了环流情况
 % 论文观点为,除开故障状况,否则32条主干支路无法随便关断
-pg_st = [1 7 12 27 es_nodes];
+pg_st = [1 4 7 13 17 25 27];
 Fij=sdpvar(37,T,'full'); 
 Wj=sdpvar(7,T,'full'); 
 M_2=50;
@@ -226,28 +199,32 @@ for t=1:T
         if ~ismember(k,pg_st)
             node_out=branch(:,1)==k;
             node_in=branch(:,2)==k;
-            Constraints=[Constraints,sum(Fij(node_out,t))-sum(Fij(node_in,t))==-u(k,t)]; 
+            Constraints=[Constraints,sum(Fij(node_out,t))-sum(Fij(node_in,t))==-u(k,t)];  
+
             Constraints = [Constraints, u(k,t) >= Iij(node_out, t)];
             Constraints = [Constraints, u(k,t) >= Iij(node_in, t)];
+
         else
             node_out=branch(:,1)==k;
             node_in=branch(:,2)==k;
             Constraints=[Constraints,sum(Fij(node_out,t))-sum(Fij(node_in,t))==Wj(pg_st==k,t)-u(k,t)];
+
             Constraints = [Constraints, u(pg_st,t) == 1]; 
+            
         end     
     end
+%Constraints=[Constraints,sum(Zij,1) <= sum(u,1)-1]; % 新增防止环流的点边约束
+        Constraints=[Constraints,sum(Zij,1) <= 32];
         % Constraints=[Constraints,Zij(Result,t) == 0];
-        Constraints=[Constraints,Zij(10,t) == 0];
-        Constraints=[Constraints,Zij(23,t) == 0];
-        Constraints=[Constraints,Zij(13,t) == 0];
-        Constraints=[Constraints,Zij(25,t) == 0];
-        Constraints=[Constraints,Zij(27,t) == 0];
+        Constraints=[Constraints,Zij(5,t) == 0];
+        Constraints=[Constraints,Zij(1,t) == 0];
+        Constraints=[Constraints,Zij(3,t) == 0];
+        Constraints=[Constraints,Zij(32,t) == 0];
+        Constraints=[Constraints,Zij(28,t) == 0];
+        Constraints=[Constraints,sum(Zij(1:32,:),1) >= 27];
 end
-% Constraints=[Constraints,sum(Zij,1) <= sum(u,1)-1]; % 新增防止环流的点边约束
-Constraints=[Constraints,sum(Zij,1) <= 32];
-Constraints=[Constraints,sum(Zij(1:32,:),1) >= 27];
 Constraints=[Constraints,-M_2.*Zij<=Fij,Fij<=M_2.*Zij];
-% Constraints=[Constraints,-M_2.*(2-Zij)<=Fij,Fij<=M_2.*(2-Zij)];
+Constraints=[Constraints,-M_2.*(2-Zij)<=Fij,Fij<=M_2.*(2-Zij)];
 
 % Constraints=[Constraints,Wj>=1];
 for i = 1:size(pg_st, 2)
@@ -259,6 +236,21 @@ Constraints = [Constraints, 0 <= Wj,Wj <= M_2 .* u(pg_st, :)];
 for t = 1:T
     Constraints = [Constraints, sum(Wj(:,t)) == sum(u(:,t))];
 end
+
+%% 节点状态与边状态间的约束
+% for t = 1:T
+%     for k = 1:33
+%         idx_connected = find(branch(:,1) == k | branch(:,2) == k);
+%         if ~isempty(idx_connected)
+%             % 只要有一条边 Zij=1, u 就必须是 1;想法：断开了也不一定为0吧 分布式电源直接接入给负荷供电
+%             Constraints = [Constraints, u(k,t) >= Zij(idx_connected, t)]; 
+%             % 想法：断开了u也不一定为0 分布式电源直接接入给负荷供电;实验证明结论正确,但目前不了解底层原理
+%             % Constraints = [Constraints, u(k,t) <= sum(Zij(idx_connected, t))];
+%         else
+%             Constraints = [Constraints, u(k,t) == 0];
+%         end
+%     end
+% end
 
 %二阶锥约束  
 for i = 1:37
@@ -275,9 +267,8 @@ Constraints = [Constraints, 0 <= Pg,Pg <= u .* Pgmax,-Qgmax.*u <= Qg,Qg <= u .* 
 %% Gemini
 % Constraints = [Constraints, Pg(pv_nodes, :) == Ppv(pv_nodes, :).*u(pv_nodes, :) ];
 % Constraints = [Constraints, Pg(wt_nodes, :) == Pwt(wt_nodes, :).*u(pv_nodes, :) ];
-% Constraints = [Constraints, Pg(pv_nodes, :) <= Pgmax(pv_nodes, :).*u(pv_nodes, :) ];
-% Constraints = [Constraints, Pg(wt_nodes, :) <= Pgmax(pv_nodes, :).*u(wt_nodes, :) ];
-Constraints = [Constraints, Pg(es_nodes, :) == Pes_dc];
+Constraints = [Constraints, Pg(pv_nodes, :) <= Ppv(pv_nodes, :).*u(pv_nodes, :) ];
+Constraints = [Constraints, Pg(wt_nodes, :) <= Pwt(wt_nodes, :).*u(wt_nodes, :) ];
 
 %%
 %支路电流约束-加上这个约束运算速度过慢
@@ -287,31 +278,37 @@ Constraints = [Constraints, -1.1*Zij <= Pij,Pij <= 1.1*Zij];
 % 不能给支路无功功率施加约束
 Constraints = [Constraints, -1.1*Zij <= Qij,Qij <= 1.1*Zij];
 % 负荷损失的状态变量
-Constraints=[Constraints,0<=lamda,lamda <= u];
+Constraints=[Constraints,0<=lamda,lamda<=1];
+Constraints=[Constraints, lamda <= u];
 % 定义负荷重要程度-参考论文:刘佳昕_极端灾害下有功-无功协同优化的两阶段配电网韧性提升策略
-% Importance = [1 1 5 2 1 2 1 1 1 5 5 2 1 1 2 1 1 2 2 1 2 2 2 5 1 1 1 1 1 2 5 1 2];
+Importance = [1 1 5 2 1 2 1 1 1 5 5 2 1 1 2 1 1 2 2 1 2 2 2 5 1 1 1 1 1 2 5 1 2];
 % 同时考虑停电负荷和电网损耗的单位成本(单位:美元/千瓦时=万美元/10MWh)
 pload_cost = 167;
 ploss_cost = 3;
 %% 4.设目标函数-内层的目标函数
 % objective = sum(sum(Iij.*(r*ones(1,T)))) + sum(sum(pload))+sum(sum(-lamda.*pload));%网损最小+负荷损失最小;可以在sum(sum(-lamda.*pload))前乘以负荷重要性矩阵
-objective = ploss_cost * sum(sum(Iij.*(r*ones(1,T)))) + pload_cost * sum(sum((pload-lamda.*pload)));
-% Psum_loss = sum(sum(Iij.*(r*ones(1,T))));
-r_load = sum(sum(lamda.*pload))/sum(sum(pload)); % 负荷恢复率
-V_bias = sum(abs(sqrt(U)-1))/33; % 电压偏差情况（分为四个周期）
+objective = ploss_cost * sum(sum(Iij.*(r*ones(1,T)))) + pload_cost * sum(sum(Importance'*ones(1,T).*(pload-lamda.*pload)));
+Psum_loss = sum(sum(Iij.*(r*ones(1,T))));
+Psum_load = sum(sum(pload-lamda.*pload));
 %% 5.设求解器
 ops = sdpsettings('solver', 'cplex', 'verbose', 0);
 ops.cplex.preprocessing.presolve = 1; % 启用预处理
+% ops.cplex.workmem = 8192;  % 8GB
 ops.cplex.workmem = 4096; 
+% ops.cplex.mip.tolerances.mipgap = 0.02;  % 放宽最优间隙
+% ops.cplex.parallel = 1;  % 启用并行计算
 ops.cplex.mip.strategy.search = 1;  % 使用动态搜索
+% ops.cplex.mip.strategy.heuristicfreq = 10; % 调整启发式频率
+
 ops.cplex.mip.tolerances.mipgap = 0.05;  % 放宽最优间隙
 ops.cplex.mip.tolerances.absmipgap = 1e-3; % 绝对间隙
 ops.cplex.mip.strategy.heuristicfreq = 50; % 调整启发式频率
+
+% 新加入
 ops.cplex.threads = 1;        % ⭐ 关键 限制每个 CPLEX 求解器仅用 1 线程
 ops.cplex.parallel = 0;       % ⭐ 关键 禁用 CPLEX 内部并行
 ops.cplex.nodefileind = 2;    % 启用节点压缩磁盘文件
 sol=optimize(Constraints,objective,ops);
-
 % 目标函数值
 objective = 100*value(objective);
 % 节点状态值
@@ -328,10 +325,9 @@ end
 %% 8.得到运行结果
 U = value(U);Iij = value(Iij);Pij = value(Pij);Qij = value(Qij);Pg = value(Pg);
 Zij = value(Zij);lamda = value(lamda);Fij = value(Fij);Wj = value(Wj);
-Pes_c = value(Pes_c);Pes_dc = value(Pes_dc);Ees = value(Ees);
-% Pes_c1 = value(Pes_c1);Pes_dc1 = value(Pes_dc1);Ees1 = value(Ees1);
-% Pes_c2 = value(Pes_c2);Pes_dc2 = value(Pes_dc2);Ees2 = value(Ees2);
-% Pes_c3 = value(Pes_c3);Pes_dc3 = value(Pes_dc3);Ees3 = value(Ees3);
+Pes_c1 = value(Pes_c1);Pes_dc1 = value(Pes_dc1);Ees1 = value(Ees1);
+Pes_c2 = value(Pes_c2);Pes_dc2 = value(Pes_dc2);Ees2 = value(Ees2);
+Pes_c3 = value(Pes_c3);Pes_dc3 = value(Pes_dc3);Ees3 = value(Ees3);
 
 % figure(1)
 % [XX,YY] = meshgrid(1:4,1:33);

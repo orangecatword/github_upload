@@ -2,7 +2,7 @@
 % clc
 % warning off
 %% 按照文章统一参数
-function[objective,r_load,V_bias] = function2(Ees_max)
+function[objective,r_load,V_bias] = function2(es_nodes,Ees_max)
 % function[objective,Psum_loss,Psum_load,U] = function2(Lc_pes1,Lc_pes2,Lc_pes3, Ees_max1,Ees_max2,Ees_max3)
 
 %% 1.设参
@@ -66,7 +66,7 @@ Qgmax(1, :) = 1.0;
 pv_nodes = [7, 27];
 wt_nodes = 12;
 % es_nodes = [3, 22,32];
-es_nodes = [18,24,30];
+% es_nodes = [18,24,30];
 Pgmax(pv_nodes, :) = 0.2; 
 Qgmax(pv_nodes, :) = 0.2; % 给予一定的无功补偿空间
 Pgmax(wt_nodes, :) = 0.2; 
@@ -234,7 +234,10 @@ for t=1:T
             Constraints = [Constraints, u(pg_st,t) == 1]; 
         end     
     end
-        Constraints=[Constraints,Zij(30,t) == 0];
+        Constraints=[Constraints,Zij(27,t) == 0];
+        % Constraints=[Constraints,Zij(33,t) == 0];
+        % Constraints=[Constraints,Zij(34,t) == 0];
+        % Constraints=[Constraints,Zij(35,t) == 0];
         %% 如果是正常运行W 与 F自然而然就是整数，问题就是如何在非强制的情况下避免环路？
         % Constraints=[Constraints,Zij(34,t) == 0];
 end
@@ -288,10 +291,11 @@ Constraints=[Constraints,0<=lamda,lamda <= u];
 % 同时考虑停电负荷和电网损耗的单位成本(单位:美元/千瓦时=万美元/10MWh)
 pload_cost = 167;
 ploss_cost = 3;
-%% 4.设目标函数-内层的目标函数
+% Ees_cost = 100; % 电池配置价格 单位:万美元/10MWh  + Ees_cost*sum(Ees_max)
+
+%% 4.设目标函数-内层的目标函数-损耗成本+建设费用(单位:万美元)
 % objective = sum(sum(Iij.*(r*ones(1,T)))) + sum(sum(pload))+sum(sum(-lamda.*pload));%网损最小+负荷损失最小;可以在sum(sum(-lamda.*pload))前乘以负荷重要性矩阵
 objective = ploss_cost * sum(sum(Iij.*(r*ones(1,T)))) + pload_cost * sum(sum((pload-lamda.*pload)));
-% Psum_loss = sum(sum(Iij.*(r*ones(1,T))));
 r_load = sum(sum(lamda.*pload))/sum(sum(pload)); % 负荷恢复率
 V_bias = sum(abs(sqrt(U)-1))/33; % 电压偏差情况（分为四个周期）
 %% 5.设求解器
@@ -308,7 +312,7 @@ ops.cplex.nodefileind = 2;    % 启用节点压缩磁盘文件
 sol=optimize(Constraints,objective,ops);
 
 % 目标函数值
-objective = 100*value(objective);
+objective = value(objective);
 % 节点状态值
 u = value(u);
 %% 6.输出AMPL模型

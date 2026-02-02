@@ -234,8 +234,10 @@ for t=1:T
             Constraints = [Constraints, u(pg_st,t) == 1]; 
         end     
     end
-        Constraints=[Constraints,Zij(3,t) == 0];
-        Constraints=[Constraints,Zij(22,t) == 0]; 
+        Constraints=[Constraints,Zij(13,t) == 0];
+        Constraints=[Constraints,Zij(27,t) == 0];
+        % Constraints=[Constraints,Zij(33,t) == 0];
+        % Constraints=[Constraints,Zij(35,t) == 0];
         %% 如果是正常运行W 与 F自然而然就是整数，问题就是如何在非强制的情况下避免环路？
         % Constraints=[Constraints,Zij(34,t) == 0];  
 end
@@ -283,15 +285,20 @@ Constraints = [Constraints, -1.1*Zij <= Pij,Pij <= 1.1*Zij];
 % 不能给支路无功功率施加约束
 Constraints = [Constraints, -1.1*Zij <= Qij,Qij <= 1.1*Zij];
 % 负荷损失的状态变量
-Constraints=[Constraints,0<=lamda,lamda <= u];
+Constraints = [Constraints,0<=lamda,lamda <= u];
 % 定义负荷重要程度-参考论文:刘佳昕_极端灾害下有功-无功协同优化的两阶段配电网韧性提升策略
 % Importance = [1 1 5 2 1 2 1 1 1 5 5 2 1 1 2 1 1 2 2 1 2 2 2 5 1 1 1 1 1 2 5 1 2];
 % 同时考虑停电负荷和电网损耗的单位成本(单位:美元/千瓦时=万美元/10MWh)
 pload_cost = 167;
 ploss_cost = 3;
-%% 4.设目标函数-内层的目标函数
+% Ees_cost = 100; % 电池配置价格 单位:万美元/10MWh  + Ees_cost*sum(Ees_max)
+
+%% 4.设目标函数-内层的目标函数-损耗成本+建设费用(单位:万美元)
 % objective = sum(sum(Iij.*(r*ones(1,T)))) + sum(sum(pload))+sum(sum(-lamda.*pload));%网损最小+负荷损失最小;可以在sum(sum(-lamda.*pload))前乘以负荷重要性矩阵
-objective = ploss_cost * sum(sum(Iij.*(r*ones(1,T)))) + pload_cost * sum(sum((pload-lamda.*pload)));
+ob1 =  pload_cost * sum(sum((pload-lamda.*pload)));
+% ob2 = Ees_cost*sum(Ees_max);
+% objective = ploss_cost * sum(sum(Iij.*(r*ones(1,T)))) + pload_cost * sum(sum((pload-lamda.*pload)));
+objective = ploss_cost * sum(sum(Iij.*(r*ones(1,T)))) + ob1;
 % Psum_loss = sum(sum(Iij.*(r*ones(1,T))));
 r_load = sum(sum(lamda.*pload))/sum(sum(pload)); % 负荷恢复率
 V_bias = sum(abs(sqrt(U)-1))/33; % 电压偏差情况（分为四个周期）
@@ -309,7 +316,8 @@ ops.cplex.nodefileind = 2;    % 启用节点压缩磁盘文件
 sol=optimize(Constraints,objective,ops);
 
 % 目标函数值
-objective = 100*value(objective);
+ob1 = value(ob1);
+objective = value(objective);
 % 节点状态值
 u = value(u);
 %% 6.输出AMPL模型

@@ -9,7 +9,7 @@ function [Alpha_score, Alpha_pos, record] = simpleGWO(~,~)
 N   = 10;          % 种群规模
 d   = 33;          % 维度（IEEE33 节点）
 Max_iter = 10;     % 最大迭代次数
-limit = [0.8, 1.2];   % 连续编码范围
+limit = [0,1];   % 连续编码范围
 forbidden_idx = [1 7 12 27];   % 禁止布置储能的位置
 %% ================== 初始化种群 ==================
 x = limit(1) + (limit(2) - limit(1)) .* rand(N, d);
@@ -40,7 +40,8 @@ record = zeros(Max_iter, 1);
 tic
 for iter = 1:Max_iter
     %% ---------- 适应度计算 ----------
-    fx = down(x);   % ⚠️ 核心：与PSO 完全一致
+    % 上层模型目标函数新增了储能成本
+    fx = down(x);   
     
     %% ---------- 更新 Alpha / Beta / Delta ----------
     for i = 1:N
@@ -68,34 +69,32 @@ for iter = 1:Max_iter
     end
     
     %% ---------- GWO 位置更新 ----------
-    a = 2 - iter * (2 / Max_iter);   % 收敛因子
-    
+    a = 2 - iter * (2 / Max_iter);   % 收敛因子 a为从2到0线性递减的函数
+    % a = 2 * (1 - iter/Max_iter)^2; % 非线性收敛因子,使得a能更快的降为1
     for i = 1:N
-        for j = 1:d
-            % --- Alpha ---
-            r1 = rand; r2 = rand;
-            A1 = 2*a*r1 - a;
-            C1 = 2*r2;
-            D_alpha = abs(C1*Alpha_pos(j) - x(i,j));
-            X1 = Alpha_pos(j) - A1*D_alpha;
+        % --- Alpha ---
+        r1 = rand; r2 = rand; % 对应论文中将r1赋给C1 r2赋给C2
+        A1 = 2*a*r1 - a; 
+        C1 = 2*r2;
+        D_alpha = abs(C1*Alpha_pos - x(i,:));
+        X1 = Alpha_pos - A1*D_alpha;
+        
+        % --- Beta ---
+        r1 = rand; r2 = rand;
+        A2 = 2*a*r1 - a;
+        C2 = 2*r2;
+        D_beta = abs(C2*Beta_pos - x(i,:));
+        X2 = Beta_pos - A2*D_beta;
+
+        % --- Delta ---
+        r1 = rand; r2 = rand;
+        A3 = 2*a*r1 - a;
+        C3 = 2*r2;
+        D_delta = abs(C3*Delta_pos - x(i,:));
+        X3 = Delta_pos - A3*D_delta;
             
-            % --- Beta ---
-            r1 = rand; r2 = rand;
-            A2 = 2*a*r1 - a;
-            C2 = 2*r2;
-            D_beta = abs(C2*Beta_pos(j) - x(i,j));
-            X2 = Beta_pos(j) - A2*D_beta;
-            
-            % --- Delta ---
-            r1 = rand; r2 = rand;
-            A3 = 2*a*r1 - a;
-            C3 = 2*r2;
-            D_delta = abs(C3*Delta_pos(j) - x(i,j));
-            X3 = Delta_pos(j) - A3*D_delta;
-            
-            % --- 更新位置 ---
-            x(i,j) = (X1 + X2 + X3) / 3;
-        end
+        % --- 更新位置 ---
+        x(i,:) = (X1 + X2 + X3) / 3;
     end
     
     %% ---------- 边界约束 ----------
@@ -130,7 +129,7 @@ for iter = 1:Max_iter
             %     keep_idx = idx(1:3); 
             % else
             % % 在前6名里随机挑3个，增加变数
-            % pool = idx(1:min(6, length(idx)));
+            % pool = idx(1:min(3, length(idx)));
             % keep_idx = pool(randperm(length(pool), 3));
             % end
             % mask = false(1, d);

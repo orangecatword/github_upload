@@ -2,13 +2,13 @@
 %% 外层：组合位置搜索
 %% 内层：down(x) 精确模型（不变）
 
-function [Alpha_score, Alpha_pos, record] = simpleGWO_3_test(~,~)
+function [Alpha_score, Alpha_pos, record] = simpleGWO_3(~,~)
 
 %% ================== 参数设置 ==================
-N   = 200;          % 种群规模
+N   = 10;          % 种群规模
 d   = 3;          % 维度（IEEE33 节点）
-Max_iter = 20;     % 最大迭代次数
-limit = [-100, 100];   % 连续编码范围
+Max_iter = 10;     % 最大迭代次数
+limit = [0.8, 1.2];   % 连续编码范围
 %% ================== 初始化种群 ==================
 x = limit(1) + (limit(2) - limit(1)) .* rand(N, d);
 %% ================== Alpha / Beta / Delta 初始化 ==================
@@ -23,38 +23,34 @@ Delta_score = inf;
 
 record = zeros(Max_iter, 1);
 
-w1 = 0.4; 
-w2 = 0.3; 
-w3 = 0.3; 
-v = 3;      % 自由度 d表示维度
-c = 0.5;     % 常数因子
-
-%% ---------- 适应度计算 ----------
-fx = sum(x.^2,2);
-% fx = sum(abs(x),2)+prod(abs(x),2);   % ⚠️ 核心：与PSO 完全一致
-% for i = 1:N
-%     fx(i,:) = max(abs(x(i,:)));
-% end
-for i = 1:N
-    if fx(i) < Alpha_score
-        Delta_score = Beta_score;
-        Delta_pos   = Beta_pos;    
-        Beta_score  = Alpha_score;
-        Beta_pos    = Alpha_pos;  
-        Alpha_score = fx(i);
-        Alpha_pos   = x(i,:);
-    elseif fx(i) < Beta_score
-        Delta_score = Beta_score;
-        Delta_pos   = Beta_pos;
-        Beta_score  = fx(i);
-        Beta_pos    = x(i,:);    
-    elseif fx(i) < Delta_score
-        Delta_score = fx(i);
-        Delta_pos   = x(i,:);
-    end
-end
-
+%% ================== GWO 主循环 ==================
+tic
 for iter = 1:Max_iter
+    %% ---------- 适应度计算 ----------
+    tic
+    fx = down_capacity(x);
+    toc
+    %% ---------- 更新 Alpha / Beta / Delta ----------
+    for i = 1:N
+        if fx(i) < Alpha_score
+            Delta_score = Beta_score;
+            Delta_pos   = Beta_pos;    
+            Beta_score  = Alpha_score;
+            Beta_pos    = Alpha_pos;  
+            Alpha_score = fx(i);
+            Alpha_pos   = x(i,:);
+        elseif fx(i) < Beta_score
+            Delta_score = Beta_score;
+            Delta_pos   = Beta_pos;
+            Beta_score  = fx(i);
+            Beta_pos    = x(i,:);    
+        elseif fx(i) < Delta_score
+            Delta_score = fx(i);
+            Delta_pos   = x(i,:);
+        end
+    end
+
+    %% ---------- GWO 位置更新 ----------
     a = 2 - iter * (2 / Max_iter);   % 收敛因子 a为从2到0线性递减的函数
     % a = 2 * (1 - iter/Max_iter)^2; % 非线性收敛因子,使得a能更快的降为1
     for i = 1:N
@@ -78,58 +74,23 @@ for iter = 1:Max_iter
         C3 = 2*r2;
         D_delta = abs(C3*Delta_pos - x(i,:));
         X3 = Delta_pos - A3*D_delta;
-            
+ 
         % --- 更新位置 ---
         x(i,:) = (X1 + X2 + X3) / 3;
     end
-
-    %% ================== RBGWO ================== 
+    %% ---------- 边界约束 (随机重置法) ----------
     for i = 1:N
-        z(i,:) = w1*X1 + w2*X2 + w3*X3;         % 公式(26-28) 
-        if fx(z(i,:)) < fx(x(i,:))
-            x(i,:) = z(i,:);
+        mask_upper = x(i,:) > limit(2);
+        mask_lower = x(i,:) < limit(1);
+        if any(mask_upper) || any(mask_lower)
+            % 越限位置重新随机初始化
+            x(i, mask_upper | mask_lower) = limit(1) + (limit(2)-limit(1)) * rand;
         end
     end
-
-    for i = 1:N
-        x_pie(i,:) = x(i,:) + a*trnd(v, 1, d);  % 公式(29)
-        if fx(x_pie(i,:))<fx(x(i,:))
-            x(i,:) = x_pie(i,:);
-        end
-    end
-
-    for i = 1:N
-        tr1 = trnd(v, 1, d);
-        tr2 = trnd(v, 1, d); 
-        x_piepie(i,:) = x(i,:) + c * (tr1+tr2); % 公式(30)
-        if fx(x_piepie(i,:))<fx(x(i,:))
-            x(i,:) = x_piepie(i,:);
-        end
-    end
-
     %% ---------- 边界约束 ----------
-    x(x > limit(2)) = limit(2);
-    x(x < limit(1)) = limit(1);
+    % x(x > limit(2)) = limit(2);
+    % x(x < limit(1)) = limit(1);
 
-    %% ---------- 更新 Alpha / Beta / Delta ----------
-    for i = 1:N
-        if fx(i) < Alpha_score
-            Delta_score = Beta_score;
-            Delta_pos   = Beta_pos;    
-            Beta_score  = Alpha_score;
-            Beta_pos    = Alpha_pos;  
-            Alpha_score = fx(i);
-            Alpha_pos   = x(i,:);
-        elseif fx(i) < Beta_score
-            Delta_score = Beta_score;
-            Delta_pos   = Beta_pos;
-            Beta_score  = fx(i);
-            Beta_pos    = x(i,:);    
-        elseif fx(i) < Delta_score
-            Delta_score = fx(i);
-            Delta_pos   = x(i,:);
-        end
-    end
     %% ---------- 记录与可视化 ----------
     record(iter) = Alpha_score;
     figure(5)
@@ -137,15 +98,15 @@ for iter = 1:Max_iter
     bar(Alpha_pos);
     title(['迭代 ', num2str(iter), ' - 最优非零元素分布']);
     xlabel('节点编号'); ylabel('编码值');
+
     subplot(1,2,2);
     plot(record(1:iter), 'LineWidth', 1.5);
     title('GWO 适应度收敛曲线');
-    xlabel('迭代次数'); ylabel('最优适应度');  
+    xlabel('迭代次数'); ylabel('最优适应度');
+
     pause(0.05);
 end
-
-
-
+toc
 %% ================== 输出结果 ==================
 disp(['最优目标值：', num2str(Alpha_score)]);
 disp(['储能位置：', num2str(find(Alpha_pos ~= 0))]);

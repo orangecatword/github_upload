@@ -74,16 +74,17 @@ dim=size(x,2);
 o=sum(x.^2)/4000-prod(cos(x./sqrt([1:dim])))+1;
 end
 
-% F12
+% F12-暂时不采用
 
-function o = F12(x)
-dim=size(x,2);
-o=(pi/dim)*(10*((sin(pi*(1+(x(1)+1)/4)))^2)+sum((((x(1:dim-1)+1)./4).^2).*...
-(1+10.*((sin(pi.*(1+(x(2:dim)+1)./4)))).^2))+((x(dim)+1)/4)^2)+sum(Ufun(x,10,100,4));
-end
+% function o = F12(x)
+% dim=size(x,2);
+% o=(pi/dim)*(10*((sin(pi*(1+(x(1)+1)/4)))^2)+sum((((x(1:dim-1)+1)./4).^2).*...
+% (1+10.*((sin(pi.*(1+(x(2:dim)+1)./4)))).^2))+((x(dim)+1)/4)^2)+sum(Ufun(x,10,100,4));
+% end
 
-% F13
-
+% F13 - 论文中注意 公式第二部分是[1+sin^2(3πx(i+1)]
+% 参考论文《A new hybrid algorithm based on grey wolf optimizer and cuckoo search for parameter extraction of solar photovoltaic models》
+% 去掉了+sum(Ufun(x,5,100,4))部分
 function o = F13(x)
 dim=size(x,2);
 o=.1*((sin(3*pi*x(1)))^2+sum((x(1:dim-1)-1).^2.*(1+(sin(3.*pi.*x(2:dim))).^2))+...
@@ -153,6 +154,7 @@ for i=1:4
 end
 end
 
+%% 研究F21-F23是否是因为维度不同分了三个函数
 % F21
 
 function o = F21(x)

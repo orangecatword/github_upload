@@ -63,14 +63,14 @@ Qgmax(1, :) = 1.0;
 % (2) 定义分布式电源 (DER) 的物理容量
 % 建议容量设得略大于风光出力的峰值，以防逆变器限功率
 % 根据Case33bw,参照之前的分析：风机峰值约 1.5MW (0.15pu)，光伏峰值约 1MW (0.1pu)
-pv_nodes = [4, 7, 27];
-wt_nodes = [13, 17, 25];
+% pv_nodes = [4, 7, 27];
+% wt_nodes = [13, 17, 25];
 % Pgmax(pv_nodes, :) = 0.15; % 给予 1.5MW 的逆变器容量空间
 % Qgmax(pv_nodes, :) = 0.10; % 给予一定的无功补偿空间
 % Pgmax(wt_nodes, :) = 0.20; % 风机容量稍大，给 2.0MW 空间
 % Qgmax(wt_nodes, :) = 0.15;
-% pv_nodes = [7, 27];
-% wt_nodes = 12;
+pv_nodes = [7, 27];
+wt_nodes = 12;
 Pgmax(pv_nodes, :) = 0.2; 
 Qgmax(pv_nodes, :) = 0.2; % 给予一定的无功补偿空间
 Pgmax(wt_nodes, :) = 0.2; 
@@ -122,11 +122,11 @@ Constraints = [Constraints, u*(0.94^2) + (1-u)*(0.94^2) <= U, U <= u*(1.06^2) + 
 Constraints = [Constraints, U(1, :) == 1.0]; % 首节点电压为1 
 %% 商品流约束-问题：出现了环流情况
 % 论文观点为,除开故障状况,否则32条主干支路无法随便关断
-% pg_st = [1 7 12 27]; 
-pg_st = [1 4 7 13 17 25 27];
+pg_st = [1 7 12 27]; 
+% pg_st = [1 4 7 13 17 25 27];
 % pg_st = [1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33];
 Fij=sdpvar(37,T,'full'); 
-Wj=sdpvar(7,T,'full'); 
+Wj=sdpvar(4,T,'full'); 
 M_2=50;
 
 for t=1:T
@@ -149,7 +149,7 @@ for t=1:T
         end     
     end
     % Constraints=[Constraints,sum(Zij,1) <= sum(u,1)-1]; % (新增)防止环流的点边约束
-        
+        % Result = [23 16 6 20 5];
         Constraints=[Constraints,Zij(Result,t) == 0];
         % Constraints=[Constraints,Zij(23,t) == 0];
         % Constraints=[Constraints,Zij(18,t) == 0];
@@ -224,6 +224,8 @@ ploss_cost = 3;
 %% 4.设目标函数-应该为故障特征量
 % objective = sum(sum(Iij.*(r*ones(1,T)))) + sum(sum(pload))+sum(sum(-lamda.*pload));%网损最小+负荷损失最小;可以在sum(sum(-lamda.*pload))前乘以负荷重要性矩阵
 % objective = ploss_cost * sum(sum(Iij.*(r*ones(1,T)))) + pload_cost * sum(sum(Importance'*ones(1,4).*(pload-lamda.*pload)));
+ob1 = sum(sum(pload))+sum(sum(-lamda.*pload)); % 负荷损失
+ob2 = sum(sum(Iij.*(r*ones(1,T)))); % 网络损失
 wload = 0.9; wnet = 0.1;
 objective = wnet*sum(sum(Iij.*(r*ones(1,T)))) + wload*sum(sum(pload))+wload*sum(sum(-lamda.*pload));
 
@@ -246,7 +248,9 @@ ops.cplex.parallel = 0;       % ⭐ 关键 禁用 CPLEX 内部并行
 ops.cplex.nodefileind = 2;    % 启用节点压缩磁盘文件
 
 sol=optimize(Constraints,objective,ops);
-objective = 100*value(objective);
+ob1 = 10*1000*value(ob1);
+ob2 = 10*1000*value(ob2);
+objective = value(objective);
 
 %% 6.输出AMPL模型
 %saveampl(Constraints,objective,'mymodel');

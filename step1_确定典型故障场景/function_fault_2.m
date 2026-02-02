@@ -197,6 +197,8 @@ ploss_cost = 3;
 %% 4.设目标函数-应该为故障特征量
 % objective = sum(sum(Iij.*(r*ones(1,T)))) + sum(sum(pload))+sum(sum(-lamda.*pload));%网损最小+负荷损失最小;可以在sum(sum(-lamda.*pload))前乘以负荷重要性矩阵
 % objective = ploss_cost * sum(sum(Iij.*(r*ones(1,T)))) + pload_cost * sum(sum(Importance'*ones(1,4).*(pload-lamda.*pload)));
+ob1 = sum(sum(pload))+sum(sum(-lamda.*pload)); % 负荷损失
+ob2 = sum(sum(Iij.*(r*ones(1,T)))); % 网络损失
 wload = 0.9; wnet = 0.1;
 objective = wnet*sum(sum(Iij.*(r*ones(1,T)))) + wload*sum(sum(pload))+wload*sum(sum(-lamda.*pload));
 
@@ -219,7 +221,9 @@ ops.cplex.parallel = 0;       % ⭐ 关键 禁用 CPLEX 内部并行
 ops.cplex.nodefileind = 2;    % 启用节点压缩磁盘文件
 
 sol=optimize(Constraints,objective,ops);
-objective = 100*value(objective);
+ob1 = 10*1000*value(ob1);
+ob2 = 10*1000*value(ob2);
+objective = value(objective);
 
 %% 6.输出AMPL模型
 %saveampl(Constraints,objective,'mymodel');

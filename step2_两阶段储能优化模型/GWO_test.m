@@ -45,13 +45,33 @@ for iter = 1:Max_iter
     % for i = 1:N  
     %     fx(i,:)=sum(abs((x(i,:)+.5)).^2);  % F6 范围:[-100,100]
     % end
-    for i = 1:N  
-        fx(i,:)=sum([1:d].*(x(i,:).^4))+rand;% F7 范围:[-1.28, 1.28]
-    end
+    % for i = 1:N  
+    %     fx(i,:)=sum([1:d].*(x(i,:).^4))+rand;% F7 范围:[-1.28, 1.28]
+    % end
     % 多模态函数
     % for i = 1:N 
-    %     fx(i,:)=sum(-x(i,:).*sin(sqrt(abs(x(i,:)))));% F8 范围:[-500, 500]
+    %     fx(i,:)=sum(-x(i,:).*sin(sqrt(abs(x(i,:)))));% F8 范围:[-500, 500] 最小值：-418.98
     % end
+
+    % for i = 1:N
+    %     fx(i,:)=sum(x(i,:).^2-10*cos(2*pi.*x(i,:)))+10*d;% F9 范围:[-5.12, 5.12]
+    % end
+
+    % for i = 1:N
+    %     fx(i,:)=-20*exp(-.2*sqrt(sum(x(i,:).^2)/d))-exp(sum(cos(2*pi.*x(i,:)))/d)+20+exp(1);% F10 范围:[-32,32]
+    % end
+
+    % for i = 1:N
+    %     fx(i,:)=sum(x(i,:).^2)/4000-prod(cos(x(i,:)./sqrt([1:d])))+1;% F11 范围：[-600,600]
+    % end
+
+    for i = 1:N
+        fx(i,:)=0.1*((sin(3*pi*x(i,1)))^2+sum((x(i,1:d-1)-1).^2.*(1+(sin(3.*pi.*x(i,2:d))).^2))+...
+                ((x(i,d)-1)^2)*(1+(sin(2*pi*x(i,d)))^2));% F13 范围：[-50,50]
+    end
+    %% 复合基准测试函数
+
+    
     %% ---------- 更新 Alpha / Beta / Delta ----------
     for i = 1:N
         if fx(i) < Alpha_score

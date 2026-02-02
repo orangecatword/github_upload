@@ -220,11 +220,11 @@ Fij=sdpvar(37,T,'full');
 Wj=sdpvar(7,T,'full'); 
 M_2=50;
 
-A = 1:32;        % 定义集合A: [1,2,3,...,33]
+A = 1:32;        % 定义集合A: [1,2,3,...,32]
 % RCS = [14,20 21];
 B = A(~ismember(A, RCS));  % 获取不属于RCS的元素
-C = B(~ismember(B, [15,32]));  
-% C = A(~ismember(A, [15,32]));  
+C = B(~ismember(B, [15,30]));  
+% C = A(~ismember(A, [15,30]));  
 for t=1:T
     for k=1:33
         if ~ismember(k,pg_st)
@@ -241,7 +241,7 @@ for t=1:T
         end     
     end
         Constraints=[Constraints,Zij(15,t) == 0];
-        Constraints=[Constraints,Zij(32,t) == 0]; 
+        Constraints=[Constraints,Zij(30,t) == 0]; 
         % Constraints=[Constraints,Zij(RCS,t) >= 0]; 
         % Constraints=[Constraints,Zij(RCS,t) <= 1];
         Constraints=[Constraints,Zij(C,t) == 1];
@@ -318,7 +318,7 @@ ops.cplex.nodefileind = 2;    % 启用节点压缩磁盘文件
 sol=optimize(Constraints,objective,ops);
 
 % 目标函数值
-objective = 100*value(objective);
+objective = value(objective);
 % 节点状态值
 u = value(u);
 %% 6.输出AMPL模型

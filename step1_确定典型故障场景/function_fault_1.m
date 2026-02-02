@@ -228,7 +228,7 @@ ops.cplex.parallel = 0;       % ⭐ 关键 禁用 CPLEX 内部并行
 ops.cplex.nodefileind = 2;    % 启用节点压缩磁盘文件
 
 sol=optimize(Constraints,objective,ops);
-objective = 100*value(objective);
+objective = 10*1000*value(objective);
 
 %% 6.输出AMPL模型
 %saveampl(Constraints,objective,'mymodel');

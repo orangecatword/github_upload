@@ -116,7 +116,7 @@ Ees_max = Ees_max';
 % Ees_max2 = 1;
 % Ees_max3 = 1;
 % 储能设备剩余能量
-Ees = sdpvar(3, T+1,'full'); 
+Ees = sdpvar(3, T+1,'full');
 % Ees1 = sdpvar(1, T+1,'full'); 
 % Ees2 = sdpvar(1, T+1,'full');
 % Ees3 = sdpvar(1, T+1,'full');
@@ -237,11 +237,15 @@ for t=1:T
         end     
     end
         % Constraints=[Constraints,Zij(Result,t) == 0];
-        Constraints=[Constraints,Zij(3,t) == 0];
-        Constraints=[Constraints,Zij(32,t) == 0];
+        Constraints=[Constraints,Zij(2,t) == 0];
+        Constraints=[Constraints,Zij(19,t) == 0];
+        Constraints=[Constraints,Zij(1,t) == 0];
+        Constraints=[Constraints,Zij(31,t) == 0];
         Constraints=[Constraints,Zij(6,t) == 0];
-        Constraints=[Constraints,Zij(28,t) == 0];
-        Constraints=[Constraints,Zij(23,t) == 0];
+
+        % Constraints=[Constraints,Zij(34,t) == 0];
+        % Constraints=[Constraints,Zij(33,t) + Zij(35,t)<= 0];
+        % Constraints=[Constraints,Zij(37,t) == 0];
 end
 % Constraints=[Constraints,sum(Zij,1) <= sum(u,1)-1]; % 新增防止环流的点边约束
 Constraints=[Constraints,sum(Zij,1) <= 32];
@@ -293,10 +297,13 @@ Constraints=[Constraints,0<=lamda,lamda <= u];
 % 同时考虑停电负荷和电网损耗的单位成本(单位:美元/千瓦时=万美元/10MWh)
 pload_cost = 167;
 ploss_cost = 3;
-%% 4.设目标函数-内层的目标函数
+% Ees_cost = 100; % 电池配置价格 单位:万美元/10MWh  + Ees_cost*sum(Ees_max)
+
+%% 4.设目标函数-内层的目标函数-损耗成本+建设费用(单位:万美元)
 % objective = sum(sum(Iij.*(r*ones(1,T)))) + sum(sum(pload))+sum(sum(-lamda.*pload));%网损最小+负荷损失最小;可以在sum(sum(-lamda.*pload))前乘以负荷重要性矩阵
-objective = ploss_cost * sum(sum(Iij.*(r*ones(1,T)))) + pload_cost * sum(sum((pload-lamda.*pload)));
-% Psum_loss = sum(sum(Iij.*(r*ones(1,T))));
+ob1 = pload_cost * sum(sum((pload-lamda.*pload)));
+% objective = ploss_cost * sum(sum(Iij.*(r*ones(1,T)))) + pload_cost * sum(sum((pload-lamda.*pload)));
+objective = ploss_cost * sum(sum(Iij.*(r*ones(1,T)))) + ob1;
 r_load = sum(sum(lamda.*pload))/sum(sum(pload)); % 负荷恢复率
 V_bias = sum(abs(sqrt(U)-1))/33; % 电压偏差情况（分为四个周期）
 %% 5.设求解器
@@ -313,7 +320,8 @@ ops.cplex.nodefileind = 2;    % 启用节点压缩磁盘文件
 sol=optimize(Constraints,objective,ops);
 
 % 目标函数值
-objective = 100*value(objective);
+ob1 = value(ob1);
+objective = value(objective);
 % 节点状态值
 u = value(u);
 %% 6.输出AMPL模型
