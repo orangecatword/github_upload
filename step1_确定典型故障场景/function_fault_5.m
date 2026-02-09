@@ -1,7 +1,7 @@
 %% 断开五条边的故障特征量
 % 故障特征量计算只考虑当前故障时刻
 % 推理结论:无解情况下断开的边大多是分叉前的支路
-function[objective] = function_fault_5(Result)
+function[objective] = function_fault_5()
 %% 现在状态-接入了六个风光元件-有作用 最大的聚类中心值从6.0536变为 2.4516,减少了负荷损失
 
 %% 1.设参
@@ -116,7 +116,7 @@ Constraints = [Constraints, U(branch(:,1),:) - U(branch(:,2),:) >= -M + 2*(r*one
 % 如果节点在线，电压在常规范围；如果节点离线，电压固定在 1.0
 % 这能极大地辅助求解器收敛
 V_nominal = 1.0^2;
-%% Gemini建议-给离线节点的电压更大的自由度，而不是固定死-"虚拟电压"充当了数学缓冲垫,但是只解决了4，5； 12，13边相连的情况
+%% Gemini建议-给离线节点的电压更大的自由度，而不是固定死-"虚拟电压"充当了数学缓冲垫
 Constraints = [Constraints, u*(0.94^2) + (1-u)*(0.94^2) <= U, U <= u*(1.06^2) + (1-u)*(1.06^2)]; 
 %节点电压约束               
 Constraints = [Constraints, U(1, :) == 1.0]; % 首节点电压为1 
@@ -125,31 +125,27 @@ Constraints = [Constraints, U(1, :) == 1.0]; % 首节点电压为1
 pg_st = [1 7 12 27]; 
 % pg_st = [1 4 7 13 17 25 27];
 % pg_st = [1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33];
-Fij=sdpvar(37,T,'full'); 
-Wj=sdpvar(4,T,'full'); 
-M_2=50;
+% Fij=sdprar(4,T,'full'); 
+% M_2=50;
 
 for t=1:T
     for k=1:33
         if ~ismember(k,pg_st)
-            node_out=branch(:,1)==k;
+            % node_out=branch(:,1)==k;
             node_in=branch(:,2)==k;
-            Constraints=[Constraints,sum(Fij(node_out,t))-sum(Fij(node_in,t))==-u(k,t)];
-
-            Constraints = [Constraints, u(k,t) >= Iij(node_out, t)];
+            % Constraints=[Constraints,sum(Fij(node_out,t))-sum(Fij(node_in,t))==-u(k,t)];
+            % Constraints = [Constraints, u(k,t) >= Iij(node_out, t)];
             Constraints = [Constraints, u(k,t) >= Iij(node_in, t)];
 
         else
-            node_out=branch(:,1)==k;
-            node_in=branch(:,2)==k;
-            Constraints=[Constraints,sum(Fij(node_out,t))-sum(Fij(node_in,t))==Wj(pg_st==k,t)-u(k,t)];
-
+            % node_out=branch(:,1)==k;
+            % node_in=branch(:,2)==k;
+            % Constraints=[Constraints,sum(Fij(node_out,t))-sum(Fij(node_in,t))==Wj(pg_st==k,t)-u(k,t)];
             Constraints = [Constraints, u(pg_st,t) == 1];
-
         end     
     end
     % Constraints=[Constraints,sum(Zij,1) <= sum(u,1)-1]; % (新增)防止环流的点边约束
-        % Result = [23 16 6 20 5];
+        Result = [22 16 31 3 28];
         Constraints=[Constraints,Zij(Result,t) == 0];
         % Constraints=[Constraints,Zij(23,t) == 0];
         % Constraints=[Constraints,Zij(18,t) == 0];
@@ -159,18 +155,18 @@ for t=1:T
 end
 Constraints=[Constraints,sum(Zij,1) <= 32];
 Constraints=[Constraints,sum(Zij(1:32,:),1) >= 27]; 
-Constraints=[Constraints,-M_2.*Zij<=Fij,Fij<=M_2.*Zij];
+% Constraints=[Constraints,-M_2.*Zij<=Fij,Fij<=M_2.*Zij];
 % Constraints=[Constraints,-M_2.*(2-Zij)<=Fij,Fij<=M_2.*(2-Zij)];
 
-for i = 1:size(pg_st, 2)
-    node_idx = pg_st(i);
-    % 只要该 DER 节点在线，其供应量 Wj 就必须至少为 1（供应自己）
-    Constraints = [Constraints, Wj(i, :) >= u(node_idx, :)];
-end
-Constraints = [Constraints, 0 <= Wj, Wj <= M_2 .* u(pg_st, :)];
-for t = 1:T
-    Constraints = [Constraints, sum(Wj(:,t)) == sum(u(:,t))];
-end
+% for i = 1:size(pg_st, 2)
+%     node_idx = pg_st(i);
+%     % 只要该 DER 节点在线，其供应量 Wj 就必须至少为 1（供应自己）
+%     Constraints = [Constraints, Wj(i, :) >= u(node_idx, :)];
+% end
+% Constraints = [Constraints, 0 <= Wj, Wj <= M_2 .* u(pg_st, :)];
+% for t = 1:T
+%     Constraints = [Constraints, sum(Wj(:,t)) == sum(u(:,t))];
+% end
 
 %% 节点状态与边状态最根本的约束
 % for t = 1:T
@@ -250,7 +246,7 @@ ops.cplex.nodefileind = 2;    % 启用节点压缩磁盘文件
 sol=optimize(Constraints,objective,ops);
 ob1 = 10*1000*value(ob1);
 ob2 = 10*1000*value(ob2);
-objective = value(objective);
+objective = 10*1000*value(objective);
 
 %% 6.输出AMPL模型
 %saveampl(Constraints,objective,'mymodel');
@@ -263,7 +259,8 @@ else
 end
 %% 8.得到运行结果
 U = value(U);Iij = value(Iij);Pij = value(Pij);Qij = value(Qij);Pg = value(Pg);
-Zij = value(Zij);lamda = value(lamda);Fij = value(Fij);Wj = value(Wj);
+Zij = value(Zij);lamda = value(lamda);
+% Fij = value(Fij);Wj = value(Wj);
 u = value(u);
 P = value(pload.*lamda - Pg);
 Q = value(qload.*lamda - Qg);

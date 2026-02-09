@@ -2,7 +2,7 @@
 % clc
 % warning off
 %% 按照文章统一参数
-function[objective,r_load,V_bias] = function4(es_nodes,Ees_max)
+function[objective,r_load,V_bias] = function4(Ees_max)
 % function[objective,Psum_loss,Psum_load,U] = function4(Lc_pes1,Lc_pes2,Lc_pes3, Ees_max1,Ees_max2,Ees_max3)
 
 %% 1.设参
@@ -65,7 +65,8 @@ Qgmax(1, :) = 1.0;
 % 根据Case33bw,参照之前的分析：风机峰值约 1.5MW (0.15pu)，光伏峰值约 1MW (0.1pu)
 pv_nodes = [7, 27];
 wt_nodes = 12;
-% es_nodes = [3, 22,32];
+es_nodes = [17 23 24];
+% es_nodes = [25 29 32];
 % es_nodes = [18,24,30];
 Pgmax(pv_nodes, :) = 0.2; 
 Qgmax(pv_nodes, :) = 0.2; % 给予一定的无功补偿空间
@@ -109,7 +110,7 @@ Ies_dc = binvar(3, T,'full');% 放电状态
 % 储能容量-根据论文修改
 Ees_max = Ees_max';
 % Ees_max = [1.0188;      1.0663;     0.84204];
-% Ees_max = ones(3,1);
+% Ees_max = 0.5*ones(3,1);
 % Ees_max1 = 1; % 标幺值 实际为10MWh
 % Ees_max2 = 1;
 % Ees_max3 = 1;
@@ -216,21 +217,21 @@ Constraints = [Constraints, U(1, :) == 1.0]; % 首节点电压为1
 %% 商品流约束-问题：出现了环流情况
 % 论文观点为,除开故障状况,否则32条主干支路无法随便关断
 pg_st = [1 7 12 27 es_nodes];
-Fij=sdpvar(37,T,'full'); 
-Wj=sdpvar(7,T,'full'); 
+% Fij=sdpvar(37,T,'full'); 
+% Wj=sdpvar(7,T,'full'); 
 M_2=50;
 for t=1:T
     for k=1:33
         if ~ismember(k,pg_st)
-            node_out=branch(:,1)==k;
+            % node_out=branch(:,1)==k;
             node_in=branch(:,2)==k;
-            Constraints=[Constraints,sum(Fij(node_out,t))-sum(Fij(node_in,t))==-u(k,t)]; 
-            Constraints = [Constraints, u(k,t) >= Iij(node_out, t)];
+            % Constraints=[Constraints,sum(Fij(node_out,t))-sum(Fij(node_in,t))==-u(k,t)]; 
+            % Constraints = [Constraints, u(k,t) >= Iij(node_out, t)];
             Constraints = [Constraints, u(k,t) >= Iij(node_in, t)];
         else
-            node_out=branch(:,1)==k;
-            node_in=branch(:,2)==k;
-            Constraints=[Constraints,sum(Fij(node_out,t))-sum(Fij(node_in,t))==Wj(pg_st==k,t)-u(k,t)];
+            % node_out=branch(:,1)==k;
+            % node_in=branch(:,2)==k;
+            % Constraints=[Constraints,sum(Fij(node_out,t))-sum(Fij(node_in,t))==Wj(pg_st==k,t)-u(k,t)];
             Constraints = [Constraints, u(pg_st,t) == 1]; 
         end     
     end
@@ -244,19 +245,19 @@ end
 % Constraints=[Constraints,sum(Zij,1) <= sum(u,1)-1]; % 新增防止环流的点边约束
 Constraints=[Constraints,sum(Zij,1) <= 32];
 Constraints=[Constraints,sum(Zij(1:32,:),1) >= 30];
-Constraints=[Constraints,-M_2.*Zij<=Fij,Fij<=M_2.*Zij];
+% Constraints=[Constraints,-M_2.*Zij<=Fij,Fij<=M_2.*Zij];
 % Constraints=[Constraints,-M_2.*(2-Zij)<=Fij,Fij<=M_2.*(2-Zij)];
 
 % Constraints=[Constraints,Wj>=1];
-for i = 1:size(pg_st, 2)
-    node_idx = pg_st(i);
+% for i = 1:size(pg_st, 2)
+    % node_idx = pg_st(i);
     % 只要该 DER 节点在线，其供应量 Wj 就必须至少为 1（供应自己）
-    Constraints = [Constraints, Wj(i, :) >= u(node_idx, :)];
-end
-Constraints = [Constraints, 0 <= Wj,Wj <= M_2 .* u(pg_st, :)];
-for t = 1:T
-    Constraints = [Constraints, sum(Wj(:,t)) == sum(u(:,t))];
-end
+    % Constraints = [Constraints, Wj(i, :) >= u(node_idx, :)];
+% end
+% Constraints = [Constraints, 0 <= Wj,Wj <= M_2 .* u(pg_st, :)];
+% for t = 1:T
+    % Constraints = [Constraints, sum(Wj(:,t)) == sum(u(:,t))];
+% end
 
 %二阶锥约束  
 for i = 1:37
@@ -291,7 +292,7 @@ Constraints = [Constraints,0<=lamda,lamda <= u];
 % 同时考虑停电负荷和电网损耗的单位成本(单位:美元/千瓦时=万美元/10MWh)
 pload_cost = 167;
 ploss_cost = 3;
-% Ees_cost = 100; % 电池配置价格 单位:万美元/10MWh + Ees_cost*sum(Ees_max)
+% Ees_cost = 100; % 电池配置价格 单位:万美元/10MWh  + Ees_cost*sum(Ees_max)
 
 %% 4.设目标函数-内层的目标函数-损耗成本+建设费用(单位:万美元)
 % objective = sum(sum(Iij.*(r*ones(1,T)))) + sum(sum(pload))+sum(sum(-lamda.*pload));%网损最小+负荷损失最小;可以在sum(sum(-lamda.*pload))前乘以负荷重要性矩阵
@@ -320,6 +321,8 @@ ob1 = value(ob1);
 objective = value(objective);
 % 节点状态值
 u = value(u);
+r_load = value(r_load);
+V_bias = value(V_bias);
 %% 6.输出AMPL模型
 %saveampl(Constraints,objective,'mymodel');
 %% 7.分析错误标志
@@ -331,7 +334,8 @@ else
 end
 %% 8.得到运行结果
 U = value(U);Iij = value(Iij);Pij = value(Pij);Qij = value(Qij);Pg = value(Pg);
-Zij = value(Zij);lamda = value(lamda);Fij = value(Fij);Wj = value(Wj);
+Zij = value(Zij);lamda = value(lamda);
+% Fij = value(Fij);Wj = value(Wj);
 Pes_c = value(Pes_c);Pes_dc = value(Pes_dc);Ees = value(Ees);
 % Pes_c1 = value(Pes_c1);Pes_dc1 = value(Pes_dc1);Ees1 = value(Ees1);
 % Pes_c2 = value(Pes_c2);Pes_dc2 = value(Pes_dc2);Ees2 = value(Ees2);
