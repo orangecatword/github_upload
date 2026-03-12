@@ -169,6 +169,6 @@ title('最终最优变量分布');
 
 subplot(1,2,2);
 plot(record, 'LineWidth', 1.5);
-title('适应度收敛曲线');
+title('GWO 适应度收敛曲线');
 
 end

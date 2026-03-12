@@ -9,8 +9,13 @@ N   = 10;          % 种群规模
 d   = 3;          % 维度（IEEE33 节点）
 Max_iter = 10;     % 最大迭代次数
 limit = [-1.28, 1.28];   % 连续编码范围
+% c1 = 0.5;                
+% c2 = 0.3;                
+% c3 = 0.2;               
+
 %% ================== 初始化种群 ==================
 x = limit(1) + (limit(2) - limit(1)) .* rand(N, d);
+% v = 0.1*(rand(N, d)-0.5);
 %% ================== Alpha / Beta / Delta 初始化 ==================
 Alpha_pos   = zeros(1, d);
 Alpha_score = inf;
@@ -45,12 +50,12 @@ for iter = 1:Max_iter
     % for i = 1:N  
     %     fx(i,:)=sum(abs((x(i,:)+.5)).^2);  % F6 范围:[-100,100]
     % end
-    % for i = 1:N  
-    %     fx(i,:)=sum([1:d].*(x(i,:).^4))+rand;% F7 范围:[-1.28, 1.28]
-    % end
+    for i = 1:N  
+        fx(i,:)=sum([1:d].*(x(i,:).^4))+rand;% F7 范围:[-1.28, 1.28]
+    end
     %% 多模态函数
     % for i = 1:N 
-    %     fx(i,:)=sum(-x(i,:).*sin(sqrt(abs(x(i,:)))));% F8 范围:[-500, 500] 最小值：-418.98
+    %     fx(i,:)=sum(-x(i,:).*sin(sqrt(abs(x(i,:)))));% F8 范围:[-500, 500] 最小值：-418.98*（维度的n次方
     % end
 
     % for i = 1:N
@@ -69,8 +74,6 @@ for iter = 1:Max_iter
     %     fx(i,:)=0.1*((sin(3*pi*x(i,1)))^2+sum((x(i,1:d-1)-1).^2.*(1+(sin(3.*pi.*x(i,2:d))).^2))+...
     %             ((x(i,d)-1)^2)*(1+(sin(2*pi*x(i,d)))^2));% F13 范围：[-50,50]
     % end
-
-
     
     %% 复合基准测试函数-维度与设定的维度有冲突
     % 不使用F19函数进行性能测试
@@ -83,9 +86,6 @@ for iter = 1:Max_iter
     %     end
     %     fx(i,:) = o;
     % end
-
-
-
 
     %% ---------- 更新 Alpha / Beta / Delta ----------
     for i = 1:N
@@ -105,48 +105,32 @@ for iter = 1:Max_iter
             Delta_score = fx(i);
             Delta_pos   = x(i,:);
         end
-    end
-
     %% ---------- GWO 位置更新 ----------
-    a = 2 - iter * (2 / Max_iter);   % 收敛因子 a为从2到0线性递减的函数
-    var = 0.5*a;% 定义为标准差-对应公式（13）
-    % a = 2 * (1 - iter/Max_iter)^2; % 非线性收敛因子,使得a能更快的降为1
-    for i = 1:N
-        % --- Alpha ---
-        r1 = rand; r2 = rand; % 对应论文中将r1赋给C1 r2赋给C2
-        A1 = 2*a*r1 - a; 
-        C1 = 2*r2;
-        D_alpha = abs(C1*Alpha_pos - x(i,:));
-        X1 = Alpha_pos - A1*D_alpha;
-        
-        % --- Beta ---
-        r1 = rand; r2 = rand;
-        A2 = 2*a*r1 - a;
-        C2 = 2*r2;
-        D_beta = abs(C2*Beta_pos - x(i,:));
-        X2 = Beta_pos - A2*D_beta;
-
-        % --- Delta ---
-        r1 = rand; r2 = rand;
-        A3 = 2*a*r1 - a;
-        C3 = 2*r2;
-        D_delta = abs(C3*Delta_pos - x(i,:));
-        X3 = Delta_pos - A3*D_delta;
-            
+        % var = 1-(iter/Max_iter)^2;% 定义为标准差-对应公式（13）
+        var = exp(-100*iter/Max_iter);
         % --- 更新位置 ---
-        lamda = var * randn; % 模拟随机误差
-        xp(i,:) = 0.5*X1 + 0.3*X2 + 0.2*X3 + lamda;
-        x(i,:) = xp(i,:)-(4*rand-2)*(xp(i,:)-x(i,:));
-    end
-    %% ---------- 边界约束 (随机重置法) ----------
-    for i = 1:N
-        mask_upper = x(i,:) > limit(2);
-        mask_lower = x(i,:) < limit(1);
-        if any(mask_upper) || any(mask_lower)
-            % 越限位置重新随机初始化
-            x(i, mask_upper | mask_lower) = limit(1) + (limit(2)-limit(1)) * rand;
+        for j = 1:d
+            lamda = var * randn; % 模拟随机误差
+            xp(i,j) = 0.5*Alpha_pos(j) + 0.3*Beta_pos(j) + 0.2*Delta_pos(j) + lamda;
+            x_t(i,j) = xp(i,j)-(4*rand-2)*(xp(i,j)-x(i,j));
+            if x_t(i,j) > 1.28
+                x(i,j) = x(i,j)+rand*(1.28-x(i,j));
+            elseif x_t(i,j) < -1.28
+                x(i,j) = x(i,j)+rand*(-1.28-x(i,j));
+            else 
+                x(i,j) = x_t(i,j);
+            end
         end
     end
+    %% ---------- 边界约束 (随机重置法) ----------
+    % for i = 1:N
+    %     mask_upper = x(i,:) > limit(2);
+    %     mask_lower = x(i,:) < limit(1);
+    %     if any(mask_upper) || any(mask_lower)
+    %         % 越限位置重新随机初始化
+    %         x(i, mask_upper | mask_lower) = limit(1) + (limit(2)-limit(1)) * rand;
+    %     end
+    % end
     %% ---------- 边界约束 ----------
     % x(x > limit(2)) = limit(2);
     % x(x < limit(1)) = limit(1);

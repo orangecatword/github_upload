@@ -8,7 +8,7 @@ function [Alpha_score, Alpha_pos, record] = simpleGWO_3(~,~)
 N   = 10;          % 种群规模
 d   = 3;          % 维度（IEEE33 节点）
 Max_iter = 10;     % 最大迭代次数
-limit = [0.8, 1.2];   % 连续编码范围
+limit = [0, 1];    % 连续编码范围
 %% ================== 初始化种群 ==================
 x = limit(1) + (limit(2) - limit(1)) .* rand(N, d);
 %% ================== Alpha / Beta / Delta 初始化 ==================
@@ -112,13 +112,13 @@ disp(['最优目标值：', num2str(Alpha_score)]);
 disp(['储能位置：', num2str(find(Alpha_pos ~= 0))]);
 disp(['对应容量：', num2str(Alpha_pos(Alpha_pos ~= 0))]);
 
-% figure(6);
-% subplot(1,2,1);
-% bar(Alpha_pos);
-% title('最终最优变量分布');
-% 
-% subplot(1,2,2);
-% plot(record, 'LineWidth', 1.5);
-% title('适应度收敛曲线');
+figure(6);
+subplot(1,2,1);
+bar(Alpha_pos);
+title('最终最优变量分布');
+
+subplot(1,2,2);
+plot(record, 'LineWidth', 1.5);
+title('适应度收敛曲线');
 
 end

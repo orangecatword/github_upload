@@ -32,32 +32,33 @@ idx = find(x(i,:) ~= 0);      % 非零元素索引
 
 %% 同时考虑N-1 N-2 N-5场景时,一定要注意权重(N-5损失远大于N-1 N-2)
 tic
-tic
-[f1,r_load1,V_bias1] = function1(idx);
-[f2,r_load2,V_bias2] = function2(idx);
-[f3,r_load3,V_bias3] = function3(idx);
-[f4,r_load4,V_bias4] = function4(idx);
-[f5,r_load5,V_bias5] = function5(idx);
-[f6,r_load6,V_bias6] = function6(idx);
-[f7,r_load7,V_bias7] = function7(idx);
-[f8,r_load8,V_bias8] = function8(idx);
-[f9,r_load9,V_bias9] = function9(idx);
-toc
+[f1,r_load1,V_bias1,R_load1] = function1_1(idx);
+[f2,r_load2,V_bias2,R_load2] = function2_1(idx);
+[f3,r_load3,V_bias3,R_load3] = function3_1(idx);
+[f4,r_load4,V_bias4,R_load4] = function4_1(idx);
+[f5,r_load5,V_bias5,R_load5] = function5_1(idx);
+[f6,r_load6,V_bias6,R_load6] = function6_1(idx);
+[f7,r_load7,V_bias7,R_load7] = function7_1(idx);
+[f8,r_load8,V_bias8,R_load8] = function8_1(idx);
+[f9,r_load9,V_bias9,R_load9] = function9_1(idx);
 toc
  
 % 归一化的方法
 Ees_cost = 100; % 电池配置价格 单位:万美元/10MWh wESS = 0.1 % 储能成本权重
-ob1 = 0.75*(1/2*(f1+f2) + (0.940*f3+0.032*f4+0.028*f5))+...
- 0.25*((0.5728*f6+0.1861*f7+0.0953*f8+0.1458*f9));
-ob2 = 1/2*(f1+f2) + (0.940*f3+0.032*f4+0.028*f5)+...
- (0.5728*f6+0.1861*f7+0.0953*f8+0.1458*f9);
-objective(i,:) = 0.75*(1/2*(f1+f2) + (0.940*f3+0.032*f4+0.028*f5)+ 0.01*Ees_cost*sum(vals))+...
- 0.25*((0.5728*f6+0.1861*f7+0.0953*f8+0.1458*f9) + 0.01*Ees_cost*sum(vals));
+ob1 = 1/2*(f1+f2) + (0.9395*f3+0.0323*f4+0.0282*f5);
+ob2 = 0.5586*f6+0.2141*f7+0.1713*f8+0.0561*f9;
+X = 0.01*Ees_cost*(0.2788+0.5478+0.6735);
+objective(i,:) = ob1 + ob2 + X;
 
+% r_load = (r_load1+r_load2+r_load3+r_load4+r_load5)/5;
+% V_bias = (V_bias1+V_bias2+V_bias3+V_bias4+V_bias5)/5;
+% r_load = (r_load6+r_load7+r_load8+r_load9)/4;
+% V_bias = (V_bias6+V_bias7+V_bias8+V_bias9)/4;
 r_load = (r_load1+r_load2+r_load3+r_load4+r_load5+r_load6+r_load7+r_load8+r_load9)/9;
 V_bias = (V_bias1+V_bias2+V_bias3+V_bias4+V_bias5+V_bias6+V_bias7+V_bias8+V_bias9)/9;
-r_load = value(r_load);
-V_bias = value(V_bias);
+R_load = (R_load1+R_load2+R_load3+R_load4+R_load5+R_load6+R_load7+R_load8+R_load9)/9;
+R_load = R_load';
+V_bias = sum(V_bias)/4;
 end
 
 

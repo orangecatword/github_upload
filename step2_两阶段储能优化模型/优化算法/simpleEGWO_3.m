@@ -48,48 +48,62 @@ for iter = 1:Max_iter
             Delta_score = fx(i);
             Delta_pos   = x(i,:);
         end
-    end
 
     %% ---------- GWO 位置更新 ----------
-    a = 2 - iter * (2 / Max_iter);   % 收敛因子 a为从2到0线性递减的函数
-    var = 0.5*a;% 定义为标准差-对应公式（13）
+    % a = 2 - iter * (2 / Max_iter);   % 收敛因子 a为从2到0线性递减的函数
+    var = exp(-100*iter/Max_iter);
     % a = 2 * (1 - iter/Max_iter)^2; % 非线性收敛因子,使得a能更快的降为1
-    for i = 1:N
-        % --- Alpha ---
-        r1 = rand; r2 = rand; % 对应论文中将r1赋给C1 r2赋给C2
-        A1 = 2*a*r1 - a; 
-        C1 = 2*r2;
-        D_alpha = abs(C1*Alpha_pos - x(i,:));
-        X1 = Alpha_pos - A1*D_alpha;
-        
-        % --- Beta ---
-        r1 = rand; r2 = rand;
-        A2 = 2*a*r1 - a;
-        C2 = 2*r2;
-        D_beta = abs(C2*Beta_pos - x(i,:));
-        X2 = Beta_pos - A2*D_beta;
-
-        % --- Delta ---
-        r1 = rand; r2 = rand;
-        A3 = 2*a*r1 - a;
-        C3 = 2*r2;
-        D_delta = abs(C3*Delta_pos - x(i,:));
-        X3 = Delta_pos - A3*D_delta;
-            
-        % --- 更新位置 ---
-        lamda = var * randn; % 模拟随机误差
-        xp(i,:) = 0.5*X1 + 0.3*X2 + 0.2*X3 + lamda;
-        x(i,:) = xp(i,:)-(4*rand-2)*(xp(i,:)-x(i,:));
-    end
-    %% ---------- 边界约束 (随机重置法) ----------
-    for i = 1:N
-        mask_upper = x(i,:) > limit(2);
-        mask_lower = x(i,:) < limit(1);
-        if any(mask_upper) || any(mask_lower)
-            % 越限位置重新随机初始化
-            x(i, mask_upper | mask_lower) = limit(1) + (limit(2)-limit(1)) * rand;
+            % --- 更新位置 ---
+        for j = 1:d
+            lamda = var * randn; % 模拟随机误差
+            xp(i,j) = 0.5*Alpha_pos(j) + 0.3*Beta_pos(j) + 0.2*Delta_pos(j) + lamda;
+            x_t(i,j) = xp(i,j)-(4*rand-2)*(xp(i,j)-x(i,j)); % 模拟每只狼的绕圈行为;|r| < 1表示攻击猎物，|r| > 1表示寻找猎物
+            if x_t(i,j) > 1
+                x(i,j) = x(i,j)+rand*(1-x(i,j));
+            elseif x_t(i,j) < 0
+                x(i,j) = x(i,j)+rand*(0-x(i,j));
+            else 
+                x(i,j) = x_t(i,j);
+            end
         end
     end
+
+    % for i = 1:N
+    %     % --- Alpha ---
+    %     r1 = rand; r2 = rand; % 对应论文中将r1赋给C1 r2赋给C2
+    %     A1 = 2*a*r1 - a; 
+    %     C1 = 2*r2;
+    %     D_alpha = abs(C1*Alpha_pos - x(i,:));
+    %     X1 = Alpha_pos - A1*D_alpha;
+    % 
+    %     % --- Beta ---
+    %     r1 = rand; r2 = rand;
+    %     A2 = 2*a*r1 - a;
+    %     C2 = 2*r2;
+    %     D_beta = abs(C2*Beta_pos - x(i,:));
+    %     X2 = Beta_pos - A2*D_beta;
+    % 
+    %     % --- Delta ---
+    %     r1 = rand; r2 = rand;
+    %     A3 = 2*a*r1 - a;
+    %     C3 = 2*r2;
+    %     D_delta = abs(C3*Delta_pos - x(i,:));
+    %     X3 = Delta_pos - A3*D_delta;
+    % 
+    %     % --- 更新位置 ---
+    %     lamda = var * randn; % 模拟随机误差
+    %     xp(i,:) = 0.5*X1 + 0.3*X2 + 0.2*X3 + lamda;
+    %     x(i,:) = xp(i,:)-(4*rand-2)*(xp(i,:)-x(i,:));
+    % end
+    %% ---------- 边界约束 (随机重置法) ----------
+    % for i = 1:N
+    %     mask_upper = x(i,:) > limit(2);
+    %     mask_lower = x(i,:) < limit(1);
+    %     if any(mask_upper) || any(mask_lower)
+    %         % 越限位置重新随机初始化
+    %         x(i, mask_upper | mask_lower) = limit(1) + (limit(2)-limit(1)) * rand;
+    %     end
+    % end
     %% ---------- 边界约束 ----------
     % x(x > limit(2)) = limit(2);
     % x(x < limit(1)) = limit(1);
