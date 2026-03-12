@@ -1,12 +1,22 @@
 %% 断开两条边的故障特征量
 % 故障特征量计算只考虑当前故障时刻
+<<<<<<< HEAD
 function[objective] = function_fault_2()
+=======
+
+function[objective] = function_fault_2(Result)
+>>>>>>> 73a3c4801881cb66c48104448e8046700252e1e6
 
 %% 1.设参
 mpc = grid_IEEE123_1;
 pload = mpc.pload;% 负荷数据
+<<<<<<< HEAD
 pload_prim = mpc.bus(:,3);% grid_IEEE123_1 基准单位为1MVA
 qload_prim = mpc.bus(:,4);
+=======
+pload_prim = mpc.bus(:,3)/(10);% grid_IEEE123_1 基准单位为1MVA,为统一为10MVA标准除以10
+qload_prim = mpc.bus(:,4)/(10);
+>>>>>>> 73a3c4801881cb66c48104448e8046700252e1e6
 a = 3.49; % 单时段所有节点有功容量,MW  3.49MW+1.92jkVA
 b = 1.92; % 单时段所有节点无功容量,MW
 pload = pload/a;% 得到各个时段与单时段容量的比例系数
@@ -78,12 +88,21 @@ Qgmax(1, :) = 1.0;
 % Pgmax(wt_nodes, :) = 0.20; % 风机容量稍大，给 2.0MW 空间
 % Qgmax(wt_nodes, :) = 0.15;
 
+<<<<<<< HEAD
 % pv_nodes = [7, 27];
 % wt_nodes = 12;
 % Pgmax(pv_nodes, :) = 0.2; 
 % Qgmax(pv_nodes, :) = 0.2; % 给予一定的无功补偿空间
 % Pgmax(wt_nodes, :) = 0.2; 
 % Qgmax(wt_nodes, :) = 0.2;
+=======
+pv_nodes = [7, 27];
+wt_nodes = 12;
+Pgmax(pv_nodes, :) = 0.2; 
+Qgmax(pv_nodes, :) = 0.2; % 给予一定的无功补偿空间
+Pgmax(wt_nodes, :) = 0.2; 
+Qgmax(wt_nodes, :) = 0.2;
+>>>>>>> 73a3c4801881cb66c48104448e8046700252e1e6
 
 % Loc_pv_initial = [0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0];
 % Loc_wt_initial = [0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0];
@@ -133,20 +152,32 @@ Constraints = [Constraints, U(branch(:,1),:) - U(branch(:,2),:) >= -M + 2*(r*one
 % 如果节点在线，电压在常规范围；如果节点离线，电压固定在 1.0
 % 这能极大地辅助求解器收敛
 V_nominal = 1.0^2;
+<<<<<<< HEAD
 %% Gemini建议-给离线节点的电压更大的自由度，而不是固定死-"虚拟电压"充当了数学缓冲垫
+=======
+%% Gemini建议-给离线节点的电压更大的自由度，而不是固定死-"虚拟电压"充当了数学缓冲垫,但是只解决了4，5； 12，13边相连的情况
+>>>>>>> 73a3c4801881cb66c48104448e8046700252e1e6
 Constraints = [Constraints, u*(0.94^2) + (1-u)*(0.94^2) <= U, U <= u*(1.06^2) + (1-u)*(1.06^2)]; 
 %节点电压约束               
 Constraints = [Constraints, U(1, :) == 1.0]; % 首节点电压为1 
 %% 商品流约束-问题：出现了环流情况
 % 论文观点为,除开故障状况,否则32条主干支路无法随便关断
+<<<<<<< HEAD
 pg_st = [1];
 % Fij=sdpvar(122,T,'full'); 
 % Wj=sdpvar(4,T,'full'); 
 % M_2=50;
+=======
+pg_st = [1 7 12 27];
+Fij=sdpvar(122,T,'full'); 
+Wj=sdpvar(4,T,'full'); 
+M_2=50;
+>>>>>>> 73a3c4801881cb66c48104448e8046700252e1e6
 
 for t=1:T
     for k=1:123
         if ~ismember(k,pg_st)
+<<<<<<< HEAD
             % node_out=branch(:,1)==k;
             node_in=branch(:,2)==k;
             % Constraints=[Constraints,sum(Fij(node_out,t))-sum(Fij(node_in,t))==-u(k,t)];
@@ -156,10 +187,24 @@ for t=1:T
             % node_out=branch(:,1)==k;
             % node_in=branch(:,2)==k;
             % Constraints=[Constraints,sum(Fij(node_out,t))-sum(Fij(node_in,t))==Wj(pg_st==k,t)-u(k,t)];
+=======
+            node_out=branch(:,1)==k;
+            node_in=branch(:,2)==k;
+            Constraints=[Constraints,sum(Fij(node_out,t))-sum(Fij(node_in,t))==-u(k,t)];
+
+            Constraints = [Constraints, u(k,t) >= Iij(node_out, t)];
+            Constraints = [Constraints, u(k,t) >= Iij(node_in, t)];
+        else
+            node_out=branch(:,1)==k;
+            node_in=branch(:,2)==k;
+            Constraints=[Constraints,sum(Fij(node_out,t))-sum(Fij(node_in,t))==Wj(pg_st==k,t)-u(k,t)];
+
+>>>>>>> 73a3c4801881cb66c48104448e8046700252e1e6
             Constraints = [Constraints, u(pg_st,t) == 1];
         end     
     end
     % Constraints=[Constraints,sum(Zij,1) <= sum(u,1)-1]; % (新增)防止环流的点边约束
+<<<<<<< HEAD
     Result = [4 51];
     Constraints=[Constraints,Zij(Result,t) == 0];
 end
@@ -177,6 +222,25 @@ Constraints=[Constraints,sum(Zij,1) >= 120];
 % for t = 1:T
     % Constraints = [Constraints, sum(Wj(:,t)) == sum(u(:,t))];
 % end
+=======
+        Result = [3 51];
+        Constraints=[Constraints,Zij(Result,t) == 0];
+end
+Constraints=[Constraints,sum(Zij,1) >= 120];
+ 
+Constraints=[Constraints,-M_2.*Zij<=Fij,Fij<=M_2.*Zij];
+% Constraints=[Constraints,-M_2.*(2-Zij)<=Fij,Fij<=M_2.*(2-Zij)];
+
+for i = 1:size(pg_st, 2)
+    node_idx = pg_st(i);
+    % 只要该 DER 节点在线，其供应量 Wj 就必须至少为 1（供应自己）
+    Constraints = [Constraints, Wj(i, :) >= u(node_idx, :)];
+end
+Constraints = [Constraints, 0 <= Wj, Wj <= M_2 .* u(pg_st, :)];
+for t = 1:T
+    Constraints = [Constraints, sum(Wj(:,t)) == sum(u(:,t))];
+end
+>>>>>>> 73a3c4801881cb66c48104448e8046700252e1e6
 
 %二阶锥约束  
 for i = 1:122
@@ -214,9 +278,15 @@ ploss_cost = 3;
 %% 4.设目标函数-应该为故障特征量
 % objective = sum(sum(Iij.*(r*ones(1,T)))) + sum(sum(pload))+sum(sum(-lamda.*pload));%网损最小+负荷损失最小;可以在sum(sum(-lamda.*pload))前乘以负荷重要性矩阵
 % objective = ploss_cost * sum(sum(Iij.*(r*ones(1,T)))) + pload_cost * sum(sum(Importance'*ones(1,4).*(pload-lamda.*pload)));
+<<<<<<< HEAD
 ob1 = sum(sum(pload))+sum(sum(-lamda.*pload)); % 负荷损失
 ob2 = sum(sum(Iij.*(r*ones(1,T)))); % 网络损失
 wload = 0.9; wnet = 0.1;
+=======
+wload = 0.9; wnet = 0.1;
+ob1 = sum(sum(pload))+sum(sum(-lamda.*pload));
+ob2 = sum(sum(Iij.*(r*ones(1,T))));
+>>>>>>> 73a3c4801881cb66c48104448e8046700252e1e6
 objective = wnet*sum(sum(Iij.*(r*ones(1,T)))) + wload*sum(sum(pload))+wload*sum(sum(-lamda.*pload));
 
 %% 5.设求解器
@@ -225,7 +295,11 @@ ops = sdpsettings('solver', 'cplex', 'verbose', 0);
 ops.cplex.preprocessing.presolve = 1; % 启用预处理
 % ops.cplex.workmem = 8192;  % 8GB
 ops.cplex.workmem = 4096; 
+<<<<<<< HEAD
 ops.cplex.mip.tolerances.mipgap = 0.0001;  % 放宽最优间隙
+=======
+ops.cplex.mip.tolerances.mipgap = 0.02;  % 放宽最优间隙
+>>>>>>> 73a3c4801881cb66c48104448e8046700252e1e6
 % ops.cplex.parallel = 1;  % 启用并行计算
 ops.cplex.mip.strategy.search = 1;  % 使用动态搜索
 ops.cplex.parallel = 0;       % ⭐ 关键 禁用 CPLEX 内部并行
@@ -238,9 +312,15 @@ ops.cplex.parallel = 0;       % ⭐ 关键 禁用 CPLEX 内部并行
 ops.cplex.nodefileind = 2;    % 启用节点压缩磁盘文件
 
 sol=optimize(Constraints,objective,ops);
+<<<<<<< HEAD
 ob1 = 1000*value(ob1);
 ob2 = 1000*value(ob2);
 objective = 1000*value(objective);
+=======
+ob1 = 10*1000*value(ob1);
+ob2 = 10*1000*value(ob2);
+objective = 10*1000*value(objective);
+>>>>>>> 73a3c4801881cb66c48104448e8046700252e1e6
 
 
 %% 6.输出AMPL模型
@@ -254,8 +334,12 @@ else
 end
 %% 8.得到运行结果
 U = value(U);Iij = value(Iij);Pij = value(Pij);Qij = value(Qij);Pg = value(Pg);
+<<<<<<< HEAD
 Zij = value(Zij);lamda = value(lamda);
 % Fij = value(Fij);Wj = value(Wj);
+=======
+Zij = value(Zij);lamda = value(lamda);Fij = value(Fij);Wj = value(Wj);
+>>>>>>> 73a3c4801881cb66c48104448e8046700252e1e6
 u = value(u);
 P = value(pload.*lamda - Pg);
 Q = value(qload.*lamda - Qg);

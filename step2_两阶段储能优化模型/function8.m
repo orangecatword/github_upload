@@ -2,7 +2,11 @@
 % clc
 % warning off
 %% 按照文章统一参数
+<<<<<<< HEAD
 function[objective,r_load,V_bias,R_load] = function8(Ees_max)
+=======
+function[objective,r_load,V_bias] = function8(Ees_max)
+>>>>>>> 73a3c4801881cb66c48104448e8046700252e1e6
 % function[objective,Psum_loss,Psum_load,U] = function8(Lc_pes1,Lc_pes2,Lc_pes3, Ees_max1,Ees_max2,Ees_max3)
 
 %% 1.设参
@@ -65,9 +69,13 @@ Qgmax(1, :) = 1.0;
 % 根据Case33bw,参照之前的分析：风机峰值约 1.5MW (0.15pu)，光伏峰值约 1MW (0.1pu)
 pv_nodes = [7, 27];
 wt_nodes = 12;
+<<<<<<< HEAD
 es_nodes = [18 24 31];
 % es_nodes = [17 23 30];
 % es_nodes = [17 23 24];
+=======
+es_nodes = [17 23 24];
+>>>>>>> 73a3c4801881cb66c48104448e8046700252e1e6
 % es_nodes = [25 29 32];
 % es_nodes = [18,24,30];
 Pgmax(pv_nodes, :) = 0.2; 
@@ -238,11 +246,19 @@ for t=1:T
         end     
     end
  % Constraints=[Constraints,Zij(Result,t) == 0];
+<<<<<<< HEAD
         Constraints=[Constraints,Zij(31,t) == 0];
         Constraints=[Constraints,Zij(17,t) == 0];
         Constraints=[Constraints,Zij(29,t) == 0];
         Constraints=[Constraints,Zij(3,t) == 0];
         Constraints=[Constraints,Zij(6,t) == 0];
+=======
+        Constraints=[Constraints,Zij(28,t) == 0];
+        Constraints=[Constraints,Zij(15,t) == 0];
+        Constraints=[Constraints,Zij(30,t) == 0];
+        Constraints=[Constraints,Zij(25,t) == 0];
+        Constraints=[Constraints,Zij(3,t) == 0];
+>>>>>>> 73a3c4801881cb66c48104448e8046700252e1e6
 
         % Constraints=[Constraints,Zij(34,t) == 0];
         % Constraints=[Constraints,Zij(33,t) + Zij(35,t)<= 0];
@@ -331,7 +347,10 @@ objective = value(objective);
 u = value(u);
 r_load = value(r_load);
 V_bias = value(V_bias);
+<<<<<<< HEAD
 R_load = value(R_load);
+=======
+>>>>>>> 73a3c4801881cb66c48104448e8046700252e1e6
 %% 6.输出AMPL模型
 %saveampl(Constraints,objective,'mymodel');
 %% 7.分析错误标志

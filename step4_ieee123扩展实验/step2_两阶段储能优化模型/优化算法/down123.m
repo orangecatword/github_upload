@@ -1,4 +1,4 @@
-function[objective] = down(x)
+function[objective] = down123(x)
 
 %% 功能：将1×33向量分解为3个独热向量 + 非零值列表
 % 样本数N
@@ -28,29 +28,24 @@ vals = x(i,idx);           % 非零元素取值
 % Ees_max2 = Ees_max(2);
 % Ees_max3 = Ees_max(3);
 
-<<<<<<< HEAD
-
-%% GWO综合整体情况 ob1 ob2 X
-idx = [16 18 32]; 
-vals = [0.4269 0.5008 0.9967]; % 0.0136+2.6391+1.9244=4.5771
-
-%% PSO综合整体情况 ob1 ob2 X
-% idx = [25 29 33];
-% % vals = [0.4 0.8423 0.4]; % 0.0066+2.0640+1.6423=3.7129
-
+%% 同时考虑N-1 N-2 N-5场景时,一定要注意权重(N-5损失远大于N-1 N-2)
 tic
-[f1,r_load1,V_bias1,R_load1] = function1(idx,vals);
-[f2,r_load2,V_bias2,R_load2] = function2(idx,vals);
-[f3,r_load3,V_bias3,R_load3] = function3(idx,vals);
-[f4,r_load4,V_bias4,R_load4] = function4(idx,vals);
-[f5,r_load5,V_bias5,R_load5] = function5(idx,vals);
-[f6,r_load6,V_bias6,R_load6] = function6(idx,vals);
-[f7,r_load7,V_bias7,R_load7] = function7(idx,vals);
-[f8,r_load8,V_bias8,R_load8] = function8(idx,vals);
-[f9,r_load9,V_bias9,R_load9] = function9(idx,vals);
-=======
-tic
-% 未取消Fij约束前
+%% 断开2条支路下-无储能成本0.8711
+% 不允许环路
+% idx =  [18 22 24] ;            % 比没有储能的更优解
+% vals =  [0.7317 0.1707 0.3188];
+% idx =  [2 16 26] ;
+% vals = [0.1136 0.1144 0.0025];  % GWO的最优解 在储能成本上过于保守,使得对损失的优化效果并不理想
+% idx =  [2 16 20];
+% vals = [0.4249 0.5075 0.4712]; % GWO第一次优化后的最优解 反而在负荷损失上的效果更好,但相对来说并不注重储能成本
+% 允许环路
+% idx  =  [16 18 24];            % 允许环路情况下的解-此时能更快更好的得到优解
+% vals =  [0.1344 0.2665 0.1278]; 储能成本0.6477-0.1190
+
+%% 断开5条支路下-无储能成本7.0482
+% 允许环路
+% idx  =  [5 18 25]; 
+% vals =  [0.6153     0.5442      0.6729];
 %% GWO综合整体情况 ob1 ob2 X
 % 允许环路
 % idx = [18 22 24]; 
@@ -61,63 +56,35 @@ tic
 
 % idx = [18 24 32];  0.0069+1.8399+1.2467 = 3.0935
 % vals = [0.3438 0.2956 0.6073];
-
-% idx = [18 22 24];  0.0117+1.7633+1.6228 = 3.3979
-% vals = [0.5506 0.3250 0.7472];
 %% PSO综合整体情况
 % 允许环路
 % idx = [14 24 32]; 0.2359+1.5121+1.8470 = 3.5949
 % vals = [0.7719 0.4226 0.6525];
 
-% idx = [25 29 33]; 0.008+1.7911+1.2365 = 3.0356
-% vals = [0.2 0.5365 0.5];
-
-% 取消Fij约束后-无储能成本 13.9419
-%% GWO综合整体情况 ob1 ob2 X
-% idx = [25 29 33]; % 3.5352+0.3366+1.5234=5.3952
-% vals = [0.3 0.628398 0.59505];
-% idx = [2 5 30]; % 12.多 废弃数据
-% vals = [0.644764537 0.422885689 0.146514911];
-
-% idx = [21 22 33]; 
-% vals = [0.7490 0.1335 0.5708];
-
-%% PSO综合整体情况 ob1 ob2 X
-% 同一次实验中 (两次实验中PSO结果代入后与目标函数不同
-% idx = [25 29 33]; % 3.2120+0.5444+1.6997=5.4561
-% vals = [0.2373 0.8055 0.6569];% (1-6次
-% idx = [4 17 33]; % 1.1959+4.8173+1.1841=7.1973
-% vals = [0.394707 0.394707 0.394707];(7-10次
-tic
 [f1,r_load1,V_bias1] = function1(idx,vals);
 [f2,r_load2,V_bias2] = function2(idx,vals);
 [f3,r_load3,V_bias3] = function3(idx,vals);
 [f4,r_load4,V_bias4] = function4(idx,vals);
 [f5,r_load5,V_bias5] = function5(idx,vals);
+
 [f6,r_load6,V_bias6] = function6(idx,vals);
 [f7,r_load7,V_bias7] = function7(idx,vals);
 [f8,r_load8,V_bias8] = function8(idx,vals);
 [f9,r_load9,V_bias9] = function9(idx,vals);
->>>>>>> 73a3c4801881cb66c48104448e8046700252e1e6
 toc
 
 % 归一化的方法
 Ees_cost = 100; % 电池配置价格 单位:万美元/10MWh wESS = 0.1 % 储能成本权重
 
-<<<<<<< HEAD
-ob1 = 1/2*(f1+f2) + (0.9395*f3+0.0323*f4+0.0282*f5);
-ob2 = 0.5586*f6+0.2141*f7+0.1713*f8+0.0561*f9;
-X = 0.01*Ees_cost*sum(vals);
-objective(i,:) = ob1 + ob2 + X;
-=======
-ob1 = 1/2*(f1+f2) + (0.9173*f3+0.0544*f4+0.0282*f5);
+% X = 0.01*Ees_cost*sum(vals);
+
+ob1 = 1/2*(f1+f2) + (0.940*f3+0.032*f4+0.028*f5);
 % objective(i,:) = 1/2*(f1+f2) + (0.940*f3+0.032*f4+0.028*f5) + 0.01*Ees_cost*sum(vals);
-ob2 = 0.5576*f6+0.2130*f7+0.1733*f8+0.0561*f9;
+ob2 = 0.5564*f6+0.2162*f7+0.1714*f8+0.0560*f9;
 % objective(i,:) = 0.5564*f6+0.2162*f7+0.1714*f8+0.0560*f9 + 0.01*Ees_cost*sum(vals);
 X = 0.01*Ees_cost*sum(vals);
-objective(i,:) = 1/2*(f1+f2) + (0.9173*f3+0.0544*f4+0.0282*f5) + 0.01*Ees_cost*sum(vals) +...
-    0.5576*f6+0.2130*f7+0.1733*f8+0.0561*f9;
->>>>>>> 73a3c4801881cb66c48104448e8046700252e1e6
+objective(i,:) = 1/2*(f1+f2) + (0.940*f3+0.032*f4+0.028*f5) + 0.01*Ees_cost*sum(vals) +...
+    0.5564*f6+0.2162*f7+0.1714*f8+0.0560*f9 ;
 
 % r_load = (r_load1+r_load2+r_load3+r_load4+r_load5)/5;
 % V_bias = (V_bias1+V_bias2+V_bias3+V_bias4+V_bias5)/5;
@@ -126,16 +93,9 @@ objective(i,:) = 1/2*(f1+f2) + (0.9173*f3+0.0544*f4+0.0282*f5) + 0.01*Ees_cost*s
 
 r_load = (r_load1+r_load2+r_load3+r_load4+r_load5+r_load6+r_load7+r_load8+r_load9)/9;
 V_bias = (V_bias1+V_bias2+V_bias3+V_bias4+V_bias5+V_bias6+V_bias7+V_bias8+V_bias9)/9;
-<<<<<<< HEAD
-R_load = (R_load1+R_load2+R_load3+R_load4+R_load5+R_load6+R_load7+R_load8+R_load9)/9;
-R_load = R_load';
-V_bias = sum(V_bias)/4;
 r_load = value(r_load);
 V_bias = value(V_bias);
-=======
->>>>>>> 73a3c4801881cb66c48104448e8046700252e1e6
 end
-
 
 
 

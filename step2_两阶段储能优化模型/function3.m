@@ -2,7 +2,11 @@
 % clc
 % warning off
 %% 按照文章统一参数
+<<<<<<< HEAD
 function[objective,r_load,V_bias,R_load] = function3(Ees_max)
+=======
+function[objective,r_load,V_bias] = function3(Ees_max)
+>>>>>>> 73a3c4801881cb66c48104448e8046700252e1e6
 % function[objective,Psum_loss,Psum_load,U] = function3(Lc_pes1,Lc_pes2,Lc_pes3, Ees_max1,Ees_max2,Ees_max3)
 
 %% 1.设参
@@ -65,9 +69,13 @@ Qgmax(1, :) = 1.0;
 % 根据Case33bw,参照之前的分析：风机峰值约 1.5MW (0.15pu)，光伏峰值约 1MW (0.1pu)
 pv_nodes = [7, 27];
 wt_nodes = 12;
+<<<<<<< HEAD
 es_nodes = [18 24 31];
 % es_nodes = [17 23 30];
 % es_nodes = [17 23 24];
+=======
+es_nodes = [17 23 24];
+>>>>>>> 73a3c4801881cb66c48104448e8046700252e1e6
 % es_nodes = [25 29 32];
 % es_nodes = [18,24,30];
 Pgmax(pv_nodes, :) = 0.2; 
@@ -237,8 +245,15 @@ for t=1:T
             Constraints = [Constraints, u(pg_st,t) == 1]; 
         end     
     end
+<<<<<<< HEAD
         Constraints=[Constraints,Zij(19,t) == 0];
         Constraints=[Constraints,Zij(27,t) == 0];
+=======
+        Constraints=[Constraints,Zij(13,t) == 0];
+        Constraints=[Constraints,Zij(5,t) == 0];
+        % Constraints=[Constraints,Zij(33,t) == 0];
+        % Constraints=[Constraints,Zij(35,t) == 0]; 
+>>>>>>> 73a3c4801881cb66c48104448e8046700252e1e6
 end
 % Constraints=[Constraints,sum(Zij,1) <= sum(u,1)-1]; % 新增防止环流的点边约束
 Constraints=[Constraints,sum(Zij,1) <= 32];
@@ -323,7 +338,10 @@ objective = value(objective);
 u = value(u);
 r_load = value(r_load);
 V_bias = value(V_bias);
+<<<<<<< HEAD
 R_load = value(R_load);
+=======
+>>>>>>> 73a3c4801881cb66c48104448e8046700252e1e6
 %% 6.输出AMPL模型
 %saveampl(Constraints,objective,'mymodel');
 %% 7.分析错误标志

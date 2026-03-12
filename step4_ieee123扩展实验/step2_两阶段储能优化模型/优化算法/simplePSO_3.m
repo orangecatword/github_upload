@@ -59,7 +59,7 @@ for iter = 1:ger
     xlabel('变量索引'); ylabel('值');
     subplot(1,2,2);
     plot(record(1:iter), 'LineWidth', 1.5);
-    title('PSO适应度收敛曲线');
+    title('最优适应度进化过程');
     xlabel('迭代次数'); ylabel('最优适应度');
     pause(0.05);
 
@@ -78,5 +78,5 @@ disp(['非零变量取值：', num2str(y_max(y_max~=0))]);
 
 figure(6);
 subplot(1,2,1); bar(y_max); title('最终最优变量分布');
-subplot(1,2,2); plot(record, 'LineWidth', 1.5); title('PSO适应度收敛曲线');
+subplot(1,2,2); plot(record, 'LineWidth', 1.5); title('适应度收敛曲线');
 end

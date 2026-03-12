@@ -142,8 +142,13 @@ for t=1:T
         end     
     end
     % Constraints=[Constraints,sum(Zij,1) <= sum(u,1)-1]; % (新增)防止环流的点边约束   
+<<<<<<< HEAD
         Constraints=[Constraints,Zij(17,t) == 0];
         Constraints=[Constraints,Zij(30,t) == 0];  
+=======
+        Constraints=[Constraints,Zij(22,t) == 0];
+        Constraints=[Constraints,Zij(24,t) == 0];  
+>>>>>>> 73a3c4801881cb66c48104448e8046700252e1e6
 end
 Constraints=[Constraints,sum(Zij,1) <= 32];
 Constraints=[Constraints,sum(Zij(1:32,:),1) >= 30]; 
