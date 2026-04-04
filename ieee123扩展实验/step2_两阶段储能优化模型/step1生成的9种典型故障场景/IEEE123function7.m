@@ -2,7 +2,8 @@
 % clc
 % warning off
 %% 按照文章统一参数
-function[objective,r_load,V_bias,R_load] = IEEE123function7(Ees_max)
+
+function[objective,r_load,V_bias,R_load] = IEEE123function7(es_nodes,Ees_max)
 % function[objective,Psum_loss,Psum_load,U] = function1(Lc_pes1,Lc_pes2,Lc_pes3, Ees_max1,Ees_max2,Ees_max3)
 
 %% 1.设参
@@ -14,7 +15,7 @@ a = 3.49; % 单时段所有节点有功容量,MW  3.49MW+1.92jkVA
 b = 1.92; % 单时段所有节点无功容量,MW
 pload = pload/a;% 得到各个时段与单时段容量的比例系数
 qload = pload/b;% 假设有功负荷曲线与无功负荷曲线相同
-pload = pload_prim*pload;% 得到33*24的负荷值,每一个时间段每个节点的负荷
+pload = pload_prim*pload;% 得到123*24的负荷值,每一个时间段每个节点的负荷
 qload = qload_prim*qload;
 % 选取9-12时作为故障隔离时间
 pload = pload(:,9:12);
@@ -68,21 +69,21 @@ Pgmax = zeros(nb, T);
 Qgmax = zeros(nb, T);
 
 % (1) 主网节点 (节点 1)
-Pgmax(1, :) = 1.0; % 对应 10MW
-Qgmax(1, :) = 1.0; 
+Pgmax(114, :) = 10; 
+Qgmax(114, :) = 10; 
 
 % (2) 定义分布式电源 (DER) 的物理容量
 % 建议容量设得略大于风光出力的峰值，以防逆变器限功率
 % 根据Case33bw,参照之前的分析：风机峰值约 1.5MW (0.15pu)，光伏峰值约 1MW (0.1pu)
-% pv_nodes = [7, 27];
-% wt_nodes = 12;
-
-es_nodes = [20 49 67];
+% es_nodes = [20 49 67];
 % es_nodes = [18,24,30];
-% Pgmax(pv_nodes, :) = 0.2; 
-% Qgmax(pv_nodes, :) = 0.2; % 给予一定的无功补偿空间
-% Pgmax(wt_nodes, :) = 0.2; 
-% Qgmax(wt_nodes, :) = 0.2;
+
+pv_nodes = [18, 67];
+wt_nodes = 108;
+Pgmax(pv_nodes, :) = 2; 
+Qgmax(pv_nodes, :) = 2; % 给予一定的无功补偿空间
+Pgmax(wt_nodes, :) = 2; 
+Qgmax(wt_nodes, :) = 2;
 Pgmax(es_nodes, :) = 2; 
 Qgmax(es_nodes, :) = 2;
 %% 2.设变量
@@ -123,7 +124,7 @@ Ies_dc = binvar(3, T,'full');% 放电状态
 % 储能容量-根据论文修改
 Ees_max = Ees_max';
 % Ees_max = [1.0188;      1.0663;     0.84204];
-% Ees_max = 20*ones(3,1);
+% Ees_max = 5*ones(3,1);
 % Ees_max1 = 1; % 标幺值 实际为10MWh
 % Ees_max2 = 1;
 % Ees_max3 = 1;
@@ -226,11 +227,11 @@ V_nominal = 1.0^2;
 %% Gemini建议-给离线节点的电压更大的自由度，而不是固定死-"虚拟电压"充当了数学缓冲垫
 Constraints = [Constraints, u*(0.94^2) + (1-u)*(0.94^2) <= U, U <= u*(1.06^2) + (1-u)*(1.06^2)]; 
 %节点电压约束               
-Constraints = [Constraints, U(1, :) == 1.0]; % 首节点电压为1   
+Constraints = [Constraints, U(114, :) == 1.0]; % 首节点电压为1   
 
 %% 商品流约束-问题：出现了环流情况
 % 论文观点为,除开故障状况,否则32条主干支路无法随便关断
-pg_st = [1 es_nodes];
+pg_st = [114 18 67 108 es_nodes];
 % Fij=sdpvar(122,T,'full'); 
 % Wj=sdpvar(7,T,'full'); 
 % M_2=50;
@@ -249,11 +250,12 @@ for t=1:T
             Constraints = [Constraints, u(pg_st,t) == 1]; 
         end     
     end
-        Constraints=[Constraints,Zij(43,t) == 0]; % 此时,任何可关断开关闭合都会导致环路
-        Constraints=[Constraints,Zij(26,t) == 0];
-        Constraints=[Constraints,Zij(80,t) == 0];
-        Constraints=[Constraints,Zij(116,t) == 0];
-        Constraints=[Constraints,Zij(74,t) == 0];
+        
+        Constraints=[Constraints,Zij(82,t) == 0];
+        Constraints=[Constraints,Zij(2,t) == 0];
+        Constraints=[Constraints,Zij(89,t) == 0];
+        Constraints=[Constraints,Zij(46,t) == 0];
+        Constraints=[Constraints,Zij(118,t) == 0];
         %% 如果是正常运行W 与 F自然而然就是整数，问题就是如何在非强制的情况下避免环路？
         % Constraints=[Constraints,Zij(34,t) == 0];
 end
@@ -315,6 +317,7 @@ ob1 =  pload_cost * sum(sum((pload-lamda.*pload)));
 ob2 =  ploss_cost * sum(sum(Iij.*(r*ones(1,T))));
 pload_sum = sum(sum(pload));
 pload2_sum = sum(sum(lamda.*pload));
+
 % ob2 = Ees_cost*sum(Ees_max);
 % objective = ploss_cost * sum(sum(Iij.*(r*ones(1,T)))) + pload_cost * sum(sum((pload-lamda.*pload)));
 objective = ploss_cost * sum(sum(Iij.*(r*ones(1,T)))) + ob1;
@@ -342,6 +345,7 @@ ob1 = value(ob1);
 ob2 = value(ob2);
 pload_sum = value(pload_sum);
 pload2_sum = value(pload2_sum);
+
 r_load = value(r_load);
 V_bias = value(V_bias);
 R_load = value(R_load);
@@ -404,4 +408,5 @@ Pes_c = value(Pes_c);Pes_dc = value(Pes_dc);Ees = value(Ees);
 % ylabel('节点序号');          
 % zlabel('线路无功功率（pu）');      
 % title('24小时线路无功功率标幺值图'); 
+
 end

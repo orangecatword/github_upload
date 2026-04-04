@@ -2,7 +2,7 @@
 % clc
 % warning off
 %% 按照文章统一参数
-function[objective,r_load,V_bias,R_load] = function9(Ees_max)
+function[objective,r_load,V_bias,R_load] = function9(es_nodes,Ees_max)
 
 % function[objective,Psum_loss,Psum_load,U] = function9(Lc_pes1,Lc_pes2,Lc_pes3, Ees_max1,Ees_max2,Ees_max3)
 
@@ -68,7 +68,7 @@ pv_nodes = [7, 27];
 wt_nodes = 12;
 
 
-es_nodes = [18 24 31];
+% es_nodes = [18 24 31];
 
 
 Pgmax(pv_nodes, :) = 0.2; 

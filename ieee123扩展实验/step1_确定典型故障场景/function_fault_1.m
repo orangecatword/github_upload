@@ -67,8 +67,8 @@ Pgmax = zeros(nb, T);
 Qgmax = zeros(nb, T);
 
 % (1) 主网节点 (节点 1)
-Pgmax(1, :) = 1.0; % 对应 10MW
-Qgmax(1, :) = 1.0; 
+Pgmax(114, :) = 10; 
+Qgmax(114, :) = 10; 
 
 % (2) 定义分布式电源 (DER) 的物理容量
 % 建议容量设得略大于风光出力的峰值，以防逆变器限功率
@@ -80,12 +80,12 @@ Qgmax(1, :) = 1.0;
 % Pgmax(wt_nodes, :) = 0.20; % 风机容量稍大，给 2.0MW 空间
 % Qgmax(wt_nodes, :) = 0.15;
 
-% pv_nodes = [7, 27];
-% wt_nodes = 12;
-% Pgmax(pv_nodes, :) = 0.2; 
-% Qgmax(pv_nodes, :) = 0.2; % 给予一定的无功补偿空间
-% Pgmax(wt_nodes, :) = 0.2; 
-% Qgmax(wt_nodes, :) = 0.2;
+pv_nodes = [18, 67];
+wt_nodes = 108;
+Pgmax(pv_nodes, :) = 2; 
+Qgmax(pv_nodes, :) = 2; % 给予一定的无功补偿空间
+Pgmax(wt_nodes, :) = 2; 
+Qgmax(wt_nodes, :) = 2;
 
 % Loc_pv_initial = [0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0];
 % Loc_wt_initial = [0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0];
@@ -138,10 +138,10 @@ V_nominal = 1.0^2;
 %% Gemini建议-给离线节点的电压更大的自由度，而不是固定死-"虚拟电压"充当了数学缓冲垫
 Constraints = [Constraints, u*(0.94^2) + (1-u)*(0.94^2) <= U, U <= u*(1.06^2) + (1-u)*(1.06^2)]; 
 %节点电压约束               
-Constraints = [Constraints, U(1, :) == 1.0]; % 首节点电压为1 
+Constraints = [Constraints, U(114, :) == 1.0]; % 首节点电压为1 
 %% 商品流约束-问题：出现了环流情况
 % 论文观点为,除开故障状况,否则32条主干支路无法随便关断
-pg_st = [1];
+pg_st = [114 18 67 108];
 % Fij=sdpvar(122,T,'full'); 
 % Wj=sdpvar(4,T,'full'); 
 % M_2=50;

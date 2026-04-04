@@ -3,7 +3,7 @@
 % warning off
 %% 按照文章统一参数
 
-function[objective,r_load,V_bias,R_load] = function3(Ees_max)
+function[objective,r_load,V_bias,R_load] = function3(es_nodes,Ees_max)
 
 % function[objective,Psum_loss,Psum_load,U] = function3(Lc_pes1,Lc_pes2,Lc_pes3, Ees_max1,Ees_max2,Ees_max3)
 
@@ -68,7 +68,7 @@ Qgmax(1, :) = 1.0;
 pv_nodes = [7, 27];
 wt_nodes = 12;
 
-es_nodes = [18 24 31];
+% es_nodes = [18 24 31];
 % es_nodes = [17 23 30];
 % es_nodes = [17 23 24];
 

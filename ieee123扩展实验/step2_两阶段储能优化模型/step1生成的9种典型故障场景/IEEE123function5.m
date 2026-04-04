@@ -2,7 +2,7 @@
 % clc
 % warning off
 %% 按照文章统一参数
-function[objective,r_load,V_bias,R_load] = IEEE123function5(Ees_max)
+function[objective,r_load,V_bias,R_load] = IEEE123function5(es_nodes,Ees_max)
 % function[objective,Psum_loss,Psum_load,U] = function1(Lc_pes1,Lc_pes2,Lc_pes3, Ees_max1,Ees_max2,Ees_max3)
 
 %% 1.设参
@@ -68,8 +68,8 @@ Pgmax = zeros(nb, T);
 Qgmax = zeros(nb, T);
 
 % (1) 主网节点 (节点 1)
-Pgmax(1, :) = 1.0; % 对应 10MW
-Qgmax(1, :) = 1.0; 
+Pgmax(114, :) = 10; 
+Qgmax(114, :) = 10; 
 
 % (2) 定义分布式电源 (DER) 的物理容量
 % 建议容量设得略大于风光出力的峰值，以防逆变器限功率
@@ -77,12 +77,14 @@ Qgmax(1, :) = 1.0;
 % pv_nodes = [7, 27];
 % wt_nodes = 12;
 
-es_nodes = [20 49 67];
+% es_nodes = [20 49 67];
 % es_nodes = [18,24,30];
-% Pgmax(pv_nodes, :) = 0.2; 
-% Qgmax(pv_nodes, :) = 0.2; % 给予一定的无功补偿空间
-% Pgmax(wt_nodes, :) = 0.2; 
-% Qgmax(wt_nodes, :) = 0.2;
+pv_nodes = [18, 67];
+wt_nodes = 108;
+Pgmax(pv_nodes, :) = 2; 
+Qgmax(pv_nodes, :) = 2; % 给予一定的无功补偿空间
+Pgmax(wt_nodes, :) = 2; 
+Qgmax(wt_nodes, :) = 2;
 Pgmax(es_nodes, :) = 2; 
 Qgmax(es_nodes, :) = 2;
 %% 2.设变量
@@ -123,7 +125,7 @@ Ies_dc = binvar(3, T,'full');% 放电状态
 % 储能容量-根据论文修改
 Ees_max = Ees_max';
 % Ees_max = [1.0188;      1.0663;     0.84204];
-% Ees_max = 20*ones(3,1);
+% Ees_max = 5*ones(3,1);
 % Ees_max1 = 1; % 标幺值 实际为10MWh
 % Ees_max2 = 1;
 % Ees_max3 = 1;
@@ -226,11 +228,11 @@ V_nominal = 1.0^2;
 %% Gemini建议-给离线节点的电压更大的自由度，而不是固定死-"虚拟电压"充当了数学缓冲垫
 Constraints = [Constraints, u*(0.94^2) + (1-u)*(0.94^2) <= U, U <= u*(1.06^2) + (1-u)*(1.06^2)]; 
 %节点电压约束               
-Constraints = [Constraints, U(1, :) == 1.0]; % 首节点电压为1   
+Constraints = [Constraints, U(114, :) == 1.0]; % 首节点电压为1   
 
 %% 商品流约束-问题：出现了环流情况
 % 论文观点为,除开故障状况,否则32条主干支路无法随便关断
-pg_st = [1 es_nodes];
+pg_st = [114 18 67 108 es_nodes];
 % Fij=sdpvar(122,T,'full'); 
 % Wj=sdpvar(7,T,'full'); 
 % M_2=50;
@@ -249,8 +251,8 @@ for t=1:T
             Constraints = [Constraints, u(pg_st,t) == 1]; 
         end     
     end
-        Constraints=[Constraints,Zij(4,t) == 0]; % 此时,任何可关断开关闭合都会导致环路
-        Constraints=[Constraints,Zij(51,t) == 0]; 
+        Constraints=[Constraints,Zij(109,t) == 0]; % 此时,任何可关断开关闭合都会导致环路
+        Constraints=[Constraints,Zij(7,t) == 0]; 
         % Constraints=[Constraints,Zij(33,t) == 0];
         % Constraints=[Constraints,Zij(34,t) == 0];
         % Constraints=[Constraints,Zij(35,t) == 0];
