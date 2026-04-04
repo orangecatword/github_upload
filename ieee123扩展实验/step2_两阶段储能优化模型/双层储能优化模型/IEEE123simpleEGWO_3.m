@@ -7,7 +7,7 @@ function [Alpha_score, Alpha_pos, record] = IEEE123simpleEGWO_3(~,~)
 %% ================== 参数设置 ==================
 N   = 20;          % 种群规模
 d   = 3;          % 维度（IEEE123 节点）
-Max_iter = 30;     % 最大迭代次数
+Max_iter = 20;     % 最大迭代次数
 limit = [0, 40];   % 连续编码范围
 %% ================== 初始化种群 ==================
 x = limit(1) + (limit(2) - limit(1)) .* rand(N, d);

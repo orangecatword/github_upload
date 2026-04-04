@@ -9,8 +9,8 @@ function [Alpha_score, Alpha_pos, record] = IEEE123simpleGWO(~,~)
 N   = 20;          % 种群规模
 d   = 123;          % 维度（IEEE33 节点）
 Max_iter = 20;     % 最大迭代次数
-limit = [0,40];   % 连续编码范围
-forbidden_idx = [122];   % 禁止布置储能的位置
+limit = [0,10];   % 连续编码范围
+forbidden_idx = [114 18 67 108];   % 禁止布置储能的位置
 %% ================== 初始化种群 ==================
 x = limit(1) + (limit(2) - limit(1)) .* rand(N, d);
 % 强制每个个体去掉禁止位置外仅选择 3 个非零变量
