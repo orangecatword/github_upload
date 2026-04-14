@@ -5,8 +5,8 @@ function[fy_max] = IEEE123simplePSO_3(~,~)
 N = 20;                 % 种群个数
 d = 3;                 % 维度
 ger = 20;              % 最大迭代次数
-limit = [0, 40];  % 位置边界
-vlimit = [-4, 4];   % 速度边界
+limit = [0, 10];  % 位置边界
+vlimit = [-1, 1];   % 速度边界
 c1 = 0.5;               % 自我学习因子
 c2 = 0.5;               % 群体学习因子
 w = 0.8;                % 惯性权重
@@ -17,7 +17,7 @@ w_max = 1;
 
 %% 初始化种群
 x = limit(1) + (limit(2) - limit(1)) .*rand(N, d);
-v = 0.1*(rand(N, d)-0.5);
+v = (rand(N, d)-0.5);
 x_max = x;                     % 个体历史最优位置
 y_max = zeros(1, d);           % 全局最优位置
 fx_max = ones(N, 1)*inf;       % 个体历史最优适应度
@@ -59,7 +59,7 @@ for iter = 1:ger
     xlabel('变量索引'); ylabel('值');
     subplot(1,2,2);
     plot(record(1:iter), 'LineWidth', 1.5);
-    title('最优适应度进化过程');
+    title('IEEE123的PSO最优适应度进化过程');
     xlabel('迭代次数'); ylabel('最优适应度');
     pause(0.05);
 

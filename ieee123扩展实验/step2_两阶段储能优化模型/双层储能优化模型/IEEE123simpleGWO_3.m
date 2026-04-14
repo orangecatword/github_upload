@@ -8,7 +8,7 @@ function [Alpha_score, Alpha_pos, record] = IEEE123simpleGWO_3(~,~)
 N   = 20;          % 种群规模
 d   = 3;          % 维度（IEEE33 节点）
 Max_iter = 20;     % 最大迭代次数
-limit = [0, 40];    % 连续编码范围
+limit = [0, 10];    % 连续编码范围
 %% ================== 初始化种群 ==================
 x = limit(1) + (limit(2) - limit(1)) .* rand(N, d);
 %% ================== Alpha / Beta / Delta 初始化 ==================
@@ -119,6 +119,6 @@ title('最终最优变量分布');
 
 subplot(1,2,2);
 plot(record, 'LineWidth', 1.5);
-title('适应度收敛曲线');
+title('IEEE123的GWO适应度收敛曲线');
 
 end

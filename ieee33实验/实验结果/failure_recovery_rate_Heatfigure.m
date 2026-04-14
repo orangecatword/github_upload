@@ -31,9 +31,6 @@ h.YDisplayLabels = {'Case I', 'Case II', 'Case III', 'Case IV', 'Case V'};
 % --- 改进 2: 将标题移动至最右侧 ---
 h.Title = 'Fault Recovery Rate'; 
 
-
-
-
 % 其他轴标签设置
 h.XLabel = 'Node';
 % h.YLabel = 'Algorithm Cases';

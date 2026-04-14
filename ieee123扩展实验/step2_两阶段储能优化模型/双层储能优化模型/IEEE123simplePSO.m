@@ -1,4 +1,4 @@
-%% 33维PSO算法（每个个体仅3个非零变量）-simplePSO在x值的迭代变化中还存在一些问题，后续研究改进时需要注意
+%% 123维PSO算法（每个个体仅3个非零变量）-simplePSO在x值的迭代变化中还存在一些问题，后续研究改进时需要注意
 
 function[fy_max] = IEEE123simplePSO(~,~)
 
@@ -19,7 +19,7 @@ forbidden_idx = [114 18 67 108];   % 禁止布置储能的位置
 w_max = 1; 
 %% 初始化种群
 x = limit(1) + (limit(2) - limit(1)) .*rand(N, d);
-v = 8*(rand(N, d)-0.5);
+v = (rand(N, d)-0.5);
 x_cun = 0; % x的中介值
 
 

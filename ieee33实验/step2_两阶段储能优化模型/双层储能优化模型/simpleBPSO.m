@@ -1,5 +1,5 @@
 %% 离散粒子群算法（选址）-同时加入自适应权重与速度筛选
-function [fy_max] = simpleBPSO(~,~)
+function [fy_max,y_max,record] = simpleBPSO(~,~)
 
 %% 参数设置
 N = 20;                 % 种群个数

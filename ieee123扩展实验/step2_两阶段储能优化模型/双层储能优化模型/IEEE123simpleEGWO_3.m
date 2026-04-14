@@ -8,7 +8,7 @@ function [Alpha_score, Alpha_pos, record] = IEEE123simpleEGWO_3(~,~)
 N   = 20;          % 种群规模
 d   = 3;          % 维度（IEEE123 节点）
 Max_iter = 20;     % 最大迭代次数
-limit = [0, 40];   % 连续编码范围
+limit = [0,10];   % 连续编码范围
 %% ================== 初始化种群 ==================
 x = limit(1) + (limit(2) - limit(1)) .* rand(N, d);
 %% ================== Alpha / Beta / Delta 初始化 ==================
@@ -51,16 +51,17 @@ for iter = 1:Max_iter
 
     %% ---------- GWO 位置更新 ----------
     % a = 2 - iter * (2 / Max_iter);   % 收敛因子 a为从2到0线性递减的函数
-    var = exp(-100*iter/Max_iter);
+    var = exp(-60*iter/Max_iter);
+    %var = 1 - iter / Max_iter; 
     % a = 2 * (1 - iter/Max_iter)^2; % 非线性收敛因子,使得a能更快的降为1
             % --- 更新位置 ---
         for j = 1:d
             lamda = var * randn; % 模拟随机误差
             xp(i,j) = 0.5*Alpha_pos(j) + 0.3*Beta_pos(j) + 0.2*Delta_pos(j) + lamda;
             x_t(i,j) = xp(i,j)-(4*rand-2)*(xp(i,j)-x(i,j)); % 模拟每只狼的绕圈行为;|r| < 1表示攻击猎物，|r| > 1表示寻找猎物
-            if x_t(i,j) > 1
+            if x_t(i,j) > limit(2)
                 x(i,j) = x(i,j)+rand*(1-x(i,j));
-            elseif x_t(i,j) < 0
+            elseif x_t(i,j) < limit(1)
                 x(i,j) = x(i,j)+rand*(0-x(i,j));
             else 
                 x(i,j) = x_t(i,j);
@@ -136,6 +137,6 @@ title('最终最优变量分布');
 
 subplot(1,2,2);
 plot(record, 'LineWidth', 1.5);
-title('适应度收敛曲线');
+title('EGWO适应度收敛曲线');
 
 end

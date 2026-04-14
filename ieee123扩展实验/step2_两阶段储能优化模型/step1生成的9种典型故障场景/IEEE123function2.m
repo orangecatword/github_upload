@@ -3,7 +3,7 @@
 % warning off
 %% 按照文章统一参数
 
-function[objective,r_load,V_bias,R_load] = IEEE123function2(es_nodes,Ees_max)
+function[objective,r_load,V_bias,R_load] = IEEE123function2(Ees_max)
 % function[objective,Psum_loss,Psum_load,U] = function1(Lc_pes1,Lc_pes2,Lc_pes3, Ees_max1,Ees_max2,Ees_max3)
 
 %% 1.设参
@@ -76,7 +76,7 @@ Qgmax(114, :) = 10;
 % 建议容量设得略大于风光出力的峰值，以防逆变器限功率
 % 根据Case33bw,参照之前的分析：风机峰值约 1.5MW (0.15pu)，光伏峰值约 1MW (0.1pu)
 % es_nodes = [20 49 67];
-% es_nodes = [18,24,30];
+es_nodes = [48  85  94];
 
 pv_nodes = [18, 67];
 wt_nodes = 108;

@@ -1,5 +1,5 @@
 %% 3维PSO算法
-function[fy_max] = simplePSO_3(~,~)
+function[fy_max,y_max,record] = simplePSO_3(~,~)
 
 %% 参数设置
 N = 20;                 % 种群个数

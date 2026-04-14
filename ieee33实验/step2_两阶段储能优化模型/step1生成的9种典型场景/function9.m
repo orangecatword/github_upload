@@ -58,8 +58,8 @@ Pgmax = zeros(nb, T);
 Qgmax = zeros(nb, T);
 
 % (1) 主网节点 (节点 1)
-Pgmax(1, :) = 1.0; % 对应 10MW
-Qgmax(1, :) = 1.0; 
+Pgmax(1, :) = 0.09; % 对应 10MW
+Qgmax(1, :) = 0.09;
 
 % (2) 定义分布式电源 (DER) 的物理容量
 % 建议容量设得略大于风光出力的峰值，以防逆变器限功率
@@ -71,12 +71,12 @@ wt_nodes = 12;
 % es_nodes = [18 24 31];
 
 
-Pgmax(pv_nodes, :) = 0.2; 
-Qgmax(pv_nodes, :) = 0.2; % 给予一定的无功补偿空间
-Pgmax(wt_nodes, :) = 0.2; 
-Qgmax(wt_nodes, :) = 0.2;
-Pgmax(es_nodes, :) = 0.2; 
-Qgmax(es_nodes, :) = 0.2;
+Pgmax(pv_nodes, :) = 0.03; 
+Qgmax(pv_nodes, :) = 0.03; % 给予一定的无功补偿空间
+Pgmax(wt_nodes, :) = 0.03; 
+Qgmax(wt_nodes, :) = 0.03;
+Pgmax(es_nodes, :) = 0.04; 
+Qgmax(es_nodes, :) = 0.04;
 %% 2.设变量
 for i = 1:1
   yalmip('clear')

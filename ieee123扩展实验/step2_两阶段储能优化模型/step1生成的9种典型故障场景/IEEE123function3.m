@@ -2,7 +2,7 @@
 % clc
 % warning off
 %% 按照文章统一参数
-function[objective,r_load,V_bias,R_load] = IEEE123function3(es_nodes,Ees_max)
+function[objective,r_load,V_bias,R_load] = IEEE123function3(Ees_max)
 % function[objective,Psum_loss,Psum_load,U] = function1(Lc_pes1,Lc_pes2,Lc_pes3, Ees_max1,Ees_max2,Ees_max3)
 
 %% 1.设参
@@ -78,7 +78,7 @@ Qgmax(114, :) = 10;
 % wt_nodes = 12;
 
 % es_nodes = [20 49 67];
-% es_nodes = [18,24,30];
+es_nodes = [48  85  94];
 pv_nodes = [18, 67];
 wt_nodes = 108;
 Pgmax(pv_nodes, :) = 2; 
