@@ -53,13 +53,13 @@ values  = values(valid_idx);
 
 fprintf('参与聚类的有效元素数: %d（已排除 >3500 的元素）\n', length(values));
 
-% x = zeros(8,1); 
+x = zeros(8,1); 
 %% Step 3. 执行K-means聚类（3类）
-% for k = 2:8
-k = 4;
+for k = 2:8
+% k = 4;
 [cluster_center,proportion,cluster_idx] = kmeans_lables(values, k);
 
-% clut = 0; % 用以确定最佳聚类数
+clut = 0; % 用以确定最佳聚类数
 %% Step 4. 输出结果
 fprintf('\n===== K-means 聚类结果 =====\n');
 for i = 1:k
@@ -67,7 +67,7 @@ for i = 1:k
     idx = find(cluster_idx == i);      % 该类样本索引
     num = size(idx,1);                 % 记录每一类的样本数
     vals = values(idx);                % 该类样本值
-    % clut = sum(abs(vals - u*ones(num,1)))^2 + clut;
+    clut = sum(abs(vals - u*ones(num,1)))^2 + clut;
 
     % 找到最接近中心的样本
     [~, nearest] = min(abs(vals - cluster_center(i)));
@@ -81,14 +81,14 @@ for i = 1:k
          nearest_val, nearest_pos(1), nearest_pos(2));
     fprintf('  具体故障情况:%d\n',Result(nearest_pos(1),:))
 end
-% x(k) = clut;
-% end
+x(k) = clut;
+end
 
-% iterations = 2:8;
-% figure; % 新建图形窗口
-% x = x/((10*1000)^2);
-% plot(iterations, x(2:8,:), 'b-', 'LineWidth', 1.5); 
-% % 添加标题和坐标轴标签
-% title('不同聚类数下的距离内和');
-% xlabel('聚类数');
-% ylabel('距离内和');
+iterations = 2:8;
+figure; % 新建图形窗口
+x = x/((10*1000)^2);
+plot(iterations, x(2:8,:), 'b-', 'LineWidth', 1.5); 
+% 添加标题和坐标轴标签
+title('不同聚类数下的距离内和');
+xlabel('聚类数');
+ylabel('距离内和');

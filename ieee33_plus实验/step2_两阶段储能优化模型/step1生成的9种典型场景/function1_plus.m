@@ -116,7 +116,7 @@ Ies_dc = binvar(3, T,'full');% 放电状态
 % 储能容量-根据论文修改
 Ees_max = Ees_max';
 % Ees_max = [1.0188;      1.0663;     0.84204];
-% Ees_max = 0.5*ones(3,1);
+% Ees_max = 0.5*ones(3,1); 
 % Ees_max1 = 1; % 标幺值 实际为10MWh
 % Ees_max2 = 1;
 % Ees_max3 = 1;

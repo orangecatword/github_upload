@@ -66,17 +66,14 @@ Qgmax(1, :) = 0.09;
 % 根据Case33bw,参照之前的分析：风机峰值约 1.5MW (0.15pu)，光伏峰值约 1MW (0.1pu)
 pv_nodes = [7, 27];
 wt_nodes = 12;
-
-
 % es_nodes = [18 24 31];
-
 
 Pgmax(pv_nodes, :) = 0.03; 
 Qgmax(pv_nodes, :) = 0.03; % 给予一定的无功补偿空间
 Pgmax(wt_nodes, :) = 0.03; 
 Qgmax(wt_nodes, :) = 0.03;
-Pgmax(es_nodes, :) = 0.0001; 
-Qgmax(es_nodes, :) = 0.0001;
+Pgmax(es_nodes, :) = 0.04; 
+Qgmax(es_nodes, :) = 0.04;
 %% 2.设变量
 for i = 1:1
   yalmip('clear')
@@ -115,7 +112,7 @@ Ies_dc = binvar(3, T,'full');% 放电状态
 % 储能容量-根据论文修改
 Ees_max = Ees_max';
 % Ees_max = [1.0188;      1.0663;     0.84204];
-% Ees_max = 0.5*ones(3,1);
+% Ees_max = 0.5*ones(3,1); 
 % Ees_max1 = 1; % 标幺值 实际为10MWh
 % Ees_max2 = 1;
 % Ees_max3 = 1;

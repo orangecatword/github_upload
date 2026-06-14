@@ -115,7 +115,7 @@ Ies_dc = binvar(3, T,'full');% 放电状态
 % 储能容量-根据论文修改
 Ees_max = Ees_max';
 % Ees_max = [1.0188;      1.0663;     0.84204];
-% Ees_max = 0.5*ones(3,1);
+% Ees_max = 0.5*ones(3,1); 
 % Ees_max1 = 1; % 标幺值 实际为10MWh
 % Ees_max2 = 1;
 % Ees_max3 = 1;
@@ -204,7 +204,7 @@ Constraints = [Constraints;
 
 %% 潮流约束
 % 节点功率约束
-Constraints = [Constraints, pload.*lamda - Pg== upstream*Pij - upstream*(Iij.*(r*ones(1,T))) - dnstream*Pij];
+Constraints = [Constraints, pload.*lamda - Pg == upstream*Pij - upstream*(Iij.*(r*ones(1,T))) - dnstream*Pij];
 Constraints = [Constraints, qload.*lamda - Qg == upstream*Qij - upstream*(Iij.*(x*ones(1,T))) - dnstream*Qij];%节点注入无功
 % Constraints = [Constraints, P == pload.*lamda - Pg+ Lc_pes1' * Pes_c1 - Lc_pes1' * Pes_dc1 + Lc_pes2' * Pes_c2 - Lc_pes2' * Pes_dc2 + Lc_pes3' * Pes_c3 - Lc_pes3' * Pes_dc3];
 % Constraints = [Constraints, Q == qload.*lamda - Qg];

@@ -146,7 +146,7 @@ for t=1:T
     end
     % Constraints=[Constraints,sum(Zij,1) <= sum(u,1)-1]; % (新增)防止环流的点边约束
 
-        % Result = [21 32 22 26 28];
+        % Result = [7 26 22 16 24];
         Constraints=[Constraints,Zij(Result,t) == 0];
         % Constraints=[Constraints,Zij(23,t) == 0];
         % Constraints=[Constraints,Zij(18,t) == 0];
@@ -223,9 +223,9 @@ ploss_cost = 0.08;
 % ob1 = pload_cost * sum(sum((pload-lamda.*pload).*(Importance'*ones(1,4))));
 % ob2 = ploss_cost * sum(sum(Iij.*(r*ones(1,T))));
 wload = 0.9; wnet = 0.1;
-ob1 = wload*sum(sum((pload-lamda.*pload).*(Importance'*ones(1,T))));
-ob2 = wnet*sum(sum(Iij.*(r*ones(1,T))));
-objective = ob1 + ob2;
+ob1 = sum(sum((pload-lamda.*pload).*(Importance'*ones(1,T))));
+ob2 = sum(sum(Iij.*(r*ones(1,T))));
+objective = wload*ob1 + wnet*ob2;
 
 %% 5.设求解器
 % tic

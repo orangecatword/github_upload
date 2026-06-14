@@ -199,9 +199,9 @@ ploss_cost = 0.08;
 % ob1 = pload_cost * sum(sum((pload-lamda.*pload).*(Importance'*ones(1,4))));
 % ob2 = ploss_cost * sum(sum(Iij.*(r*ones(1,T))));
 wload = 0.9; wnet = 0.1;
-ob1 = wload*sum(sum((pload-lamda.*pload).*(Importance'*ones(1,T))));
-ob2 = wnet*sum(sum(Iij.*(r*ones(1,T))));
-objective = ob1 + ob2;
+ob1 = sum(sum((pload-lamda.*pload).*(Importance'*ones(1,T))));
+ob2 = sum(sum(Iij.*(r*ones(1,T))));
+objective = wload*ob1 + wnet*ob2;
 
 %% 5.设求解器
 % tic
