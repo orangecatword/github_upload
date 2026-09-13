@@ -1,0 +1,16 @@
+% 建立交替优化的大框架 交替优化算法
+
+%% 1.设参数
+idx_H = [6 23]; % 初始化氢储能配置情况
+vals_H = [1 1];
+% [8,23,30]  [0.1867,0.3095,0.4229] 
+% 6 0.7317
+
+for i =1:10
+    [idx,vals,f1]     = EGWO_BESS(idx_H,vals_H);
+    [idx_H,vals_H,f2] = EGWO_HESS(idx,vals);
+    if abs(f1-f2) <= 1e-3
+        break
+    end
+end
+

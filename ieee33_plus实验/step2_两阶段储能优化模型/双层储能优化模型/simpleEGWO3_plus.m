@@ -28,7 +28,7 @@ tic
 for iter = 1:Max_iter
     %% ---------- 适应度计算 ----------
     tic
-    fx = down_capacity_plus(x);
+    fx = down_plus(x);
     toc
     %% ---------- 更新 Alpha / Beta / Delta ----------
     for i = 1:N

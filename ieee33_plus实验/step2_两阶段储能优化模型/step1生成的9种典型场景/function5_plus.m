@@ -2,9 +2,18 @@
 % clc
 % warning off
 %% 按照文章统一参数
-function[objective,r_load,V_bias,R_load] = function5_plus(es_nodes,Ees_max)
 
+function[objective,r_load,V_bias,R_load] = function5_plus(es_nodes,Ees_max)
 % function[objective,Psum_loss,Psum_load,U] = function5(Lc_pes1,Lc_pes2,Lc_pes3, Ees_max1,Ees_max2,Ees_max3)
+
+%% 储能配置备选解
+% es_nodes = [5	17	28];
+% Ees_max = [0.351659507062997 0.173388613119006 0.347712671277525];
+% es_nodes = [5,10,25];
+% Ees_max = [0.0377,0.0326,0.1239];
+
+% es_nodes = [5,28,30];
+% Ees_max = [0.675375318416595,0.542991694845257,0.894235714464514];
 
 %% 1.设参
 mpc = case33bw2;
@@ -76,6 +85,7 @@ Pgmax(wt_nodes, :) = 0.03;
 Qgmax(wt_nodes, :) = 0.03;
 Pgmax(es_nodes, :) = 0.04; 
 Qgmax(es_nodes, :) = 0.04;
+
 %% 2.设变量
 for i = 1:1
   yalmip('clear')
@@ -89,7 +99,7 @@ P = sdpvar(nb,T);
 Q = sdpvar(nb,T);
 
 % 定义节点状态变量-用以判断节点是否正常运行
-u = binvar(nb,T);
+% u = binvar(nb,T);
 lamda=sdpvar(33,T,'full');% 负荷损失的状态变量
 Zij=binvar(nl,T);%网架结构               
 % Z0=[ones(nl-nc,1);zeros(nc,1)];%初始拓扑                      
@@ -203,7 +213,7 @@ Constraints = [Constraints;
 
 %% 潮流约束
 % 节点功率约束
-Constraints = [Constraints, pload.*lamda - Pg== upstream*Pij - upstream*(Iij.*(r*ones(1,T))) - dnstream*Pij];
+Constraints = [Constraints, pload.*lamda - Pg == upstream*Pij - upstream*(Iij.*(r*ones(1,T))) - dnstream*Pij];
 Constraints = [Constraints, qload.*lamda - Qg == upstream*Qij - upstream*(Iij.*(x*ones(1,T))) - dnstream*Qij];%节点注入无功
 % Constraints = [Constraints, P == pload.*lamda - Pg+ Lc_pes1' * Pes_c1 - Lc_pes1' * Pes_dc1 + Lc_pes2' * Pes_c2 - Lc_pes2' * Pes_dc2 + Lc_pes3' * Pes_c3 - Lc_pes3' * Pes_dc3];
 % Constraints = [Constraints, Q == qload.*lamda - Qg];
@@ -213,41 +223,73 @@ M = (ones(nl,T) - Zij)*m;
 Constraints = [Constraints, U(branch(:,1),:) - U(branch(:,2),:) <= M + 2*(r*ones(1,T)).*Pij + 2*(x*ones(1,T)).*Qij - ((r.^2 + x.^2))*ones(1,T).*Iij];
 Constraints = [Constraints, U(branch(:,1),:) - U(branch(:,2),:) >= -M + 2*(r*ones(1,T)).*Pij + 2*(x*ones(1,T)).*Qij - ((r.^2 + x.^2))*ones(1,T).*Iij];
 % 如果节点在线，电压在常规范围；如果节点离线，电压固定在 1.0。这能极大地辅助求解器收敛
-V_nominal = 1.0^2;
-Constraints = [Constraints, u*(0.94^2) + (1-u)*V_nominal <= U,U <= u*(1.06^2) + (1-u)*V_nominal];
+% V_nominal = 1.0^2;
+% Constraints = [Constraints, u*(0.94^2) + (1-u)*V_nominal <= U,U <= u*(1.06^2) + (1-u)*V_nominal];
 %节点电压约束               
-Constraints = [Constraints, U(1, :) == 1.0]; % 首节点电压为1   
+Constraints = [Constraints, U(1, :) == 1.0]; % 首节点电压为1
+Constraints = [Constraints, 0.94^2<= U,U <= 1.06^2]; % 电压波动范围约束
 
 %% 商品流约束-问题：出现了环流情况
+%虚拟网络
+% pg_st = [1 7 12 27 es_nodes];
+% Fij=sdpvar(37,T,'full'); 
+% Wj=sdpvar(7,T,'full'); 
+% M_2=100;
+% for t=1:T
+%     for k=1:33
+%         if ~ismember(k,pg_st)
+%             node_out=find(branch(:,1)==k);
+%             node_in=find(branch(:,2)==k);
+%             Constraints=[Constraints,sum(Fij(node_out,t))-sum(Fij(node_in,t))==-1];
+%         else
+%             node_out=find(branch(:,1)==k);
+%             node_in=find(branch(:,2)==k);
+%             Constraints=[Constraints,sum(Fij(node_out,t))-sum(Fij(node_in,t))==Wj(find(pg_st==k),t)-1];
+%         end
+%     end
+%         Constraints=[Constraints,Zij(29,t) == 0];
+%         Constraints=[Constraints,Zij(31,t) == 0];
+% end
+% Constraints=[Constraints,-M_2.*Zij<=Fij<=M_2.*Zij];
+% Constraints=[Constraints,-M_2.*(2-Zij)<=Fij<=M_2.*(2-Zij)];
+% Constraints=[Constraints,Wj>=1];
+
+
+
 % 论文观点为,除开故障状况,否则32条主干支路无法随便关断
 pg_st = [1 7 12 27 es_nodes];
 % Fij=sdpvar(37,T,'full'); 
 % Wj=sdpvar(7,T,'full'); 
 M_2=50;
 for t=1:T
-    for k=1:33
-        if ~ismember(k,pg_st)
-            % node_out=branch(:,1)==k;
-            node_in=branch(:,2)==k;
-            % Constraints=[Constraints,sum(Fij(node_out,t))-sum(Fij(node_in,t))==-u(k,t)]; 
-            % Constraints = [Constraints, u(k,t) >= Iij(node_out, t)];
-            Constraints = [Constraints, u(k,t) >= Iij(node_in, t)];
-        else
-            % node_out=branch(:,1)==k;
-            % node_in=branch(:,2)==k;
-            % Constraints=[Constraints,sum(Fij(node_out,t))-sum(Fij(node_in,t))==Wj(pg_st==k,t)-u(k,t)];
-            Constraints = [Constraints, u(pg_st,t) == 1]; 
-        end     
-    end
+    % for k=1:33
+    %     if ~ismember(k,pg_st)
+    %         % node_out=branch(:,1)==k;
+    %         node_in=branch(:,2)==k;
+    %         % Constraints=[Constraints,sum(Fij(node_out,t))-sum(Fij(node_in,t))==-u(k,t)]; 
+    %         % Constraints = [Constraints, u(k,t) >= Iij(node_out, t)];
+    %         Constraints = [Constraints, u(k,t) >= Iij(node_in, t)];
+    %     else
+    %         % node_out=branch(:,1)==k;
+    %         % node_in=branch(:,2)==k;
+    %         % Constraints=[Constraints,sum(Fij(node_out,t))-sum(Fij(node_in,t))==Wj(pg_st==k,t)-u(k,t)];
+    %         Constraints = [Constraints, u(pg_st,t) == 1]; 
+    %     end     
+    % end
         Constraints=[Constraints,Zij(29,t) == 0];
         Constraints=[Constraints,Zij(31,t) == 0];
-        
+
         % Constraints=[Constraints,Zij(33,t) == 0];
         % Constraints=[Constraints,Zij(34,t) == 0];
         % Constraints=[Constraints,Zij(35,t) == 0];
         % Constraints=[Constraints,Zij(37,t) == 0];
-end
+% end
+
+
+
+
 % Constraints=[Constraints,sum(Zij,1) <= sum(u,1)-1]; % 新增防止环流的点边约束
+
 Constraints=[Constraints,sum(Zij,1) <= 32];
 Constraints=[Constraints,sum(Zij(1:32,:),1) >= 30];
 % Constraints=[Constraints,-M_2.*Zij<=Fij,Fij<=M_2.*Zij];
@@ -275,7 +317,8 @@ end
 %% 通用约束
 %发电机功率约束           
 % Constraints = [Constraints, -Pgmax.*u <= Pg,Pg <= u .* Pgmax,-Qgmax.*u <= Qg,Qg <= u .* Qgmax];
-Constraints = [Constraints, 0 <= Pg,Pg <= u .* Pgmax,-Qgmax.*u <= Qg,Qg <= u .* Qgmax];
+% Constraints = [Constraints, 0 <= Pg,Pg <= u .* Pgmax,-Qgmax.*u <= Qg,Qg <= u .* Qgmax]; % 有u没u都一样 而且Pg功率已经和节点一一对应了
+Constraints = [Constraints, 0 <= Pg,Pg <= Pgmax,-Qgmax <= Qg,Qg <= Qgmax];
 %% Gemini
 % Constraints = [Constraints, Pg(pv_nodes, :) == Ppv(pv_nodes, :).*u(pv_nodes, :) ];
 % Constraints = [Constraints, Pg(wt_nodes, :) == Pwt(wt_nodes, :).*u(pv_nodes, :) ];
@@ -291,9 +334,9 @@ Constraints = [Constraints, -1.1*Zij <= Pij,Pij <= 1.1*Zij];
 % 不能给支路无功功率施加约束
 Constraints = [Constraints, -1.1*Zij <= Qij,Qij <= 1.1*Zij];
 % 负荷损失的状态变量
-Constraints = [Constraints,0<=lamda,lamda <= u];
-
-
+% Constraints = [Constraints,0<=lamda,lamda <= u]; % 如果真的u为0了，根据节点功率约束公式，也可以得出lamda为0
+Constraints = [Constraints,0<=lamda,lamda <= 1];
+% 定义负荷重要程度
 Importance = [10 1 3 1 1 1 10 3 1 1 1 3 1 3 1 1 1 10 1 1 3 1 1 1 10 1 1 1 3 1 10 1 1];
 % 定义各种成本(单位:美元/千瓦时=万美元/10MWh)
 pload_cost = 3.5;
@@ -328,7 +371,7 @@ end
 ob1 = value(ob1);ob2 = value(ob2);ob3 = value(ob3);
 objective = value(objective);
 % 节点状态值
-u = value(u);
+% u = value(u);
 r_load = value(r_load);
 V_bias = value(V_bias);
 R_load = value(R_load);

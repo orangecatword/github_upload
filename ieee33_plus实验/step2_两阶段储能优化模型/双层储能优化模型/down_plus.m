@@ -59,15 +59,15 @@ vals = x(i,idx);           % 非零元素取值
 % vals = [0.586032978	0.423229616	0.478753417]; % 可靠性-断路数5 故障恢复率：0.9832 V_bias:0.0230 储能成本：0.4687/0.003
 % Rload 0	0.999998173839264	0.999999864407686	0.999998661204003	0.999997444745956	0.999997653835589	0.999999994086123	0.999999966181738	0.888886226642585	0.888886261129800	0.888885189134784	0.999999790552483	0.999995653508126	1.00000000442943	0.888880414370805	0.999976349937680	0.997052396744118	1.00000002036421	0.999997920097065	0.999997135264203	0.999999864414195	0.999996564084684	0.999990518161039	0.993525246661057	1.00000003529375	0.999997705231300	0.999997777702994	0.889019185213609	0.999999897042158	0.978552325068862	0.999999987153609	0.888933659059769	0.999998218132787
 tic
-[f1,r_load1,V_bias1,R_load1] = function1_plus(idx,vals);
-[f2,r_load2,V_bias2,R_load2] = function2_plus(idx,vals);
-[f3,r_load3,V_bias3,R_load3] = function3_plus(idx,vals);
-[f4,r_load4,V_bias4,R_load4] = function4_plus(idx,vals);
+% [f1,r_load1,V_bias1,R_load1] = function1_plus(idx,vals);
+% [f2,r_load2,V_bias2,R_load2] = function2_plus(idx,vals);
+% [f3,r_load3,V_bias3,R_load3] = function3_plus(idx,vals);
+% [f4,r_load4,V_bias4,R_load4] = function4_plus(idx,vals);
 [f5,r_load5,V_bias5,R_load5] = function5_plus(idx,vals);
-[f6,r_load6,V_bias6,R_load6] = function6_plus(idx,vals);
-[f7,r_load7,V_bias7,R_load7] = function7_plus(idx,vals);
-[f8,r_load8,V_bias8,R_load8] = function8_plus(idx,vals);
-[f9,r_load9,V_bias9,R_load9] = function9_plus(idx,vals);
+% [f6,r_load6,V_bias6,R_load6] = function6_plus(idx,vals);
+% [f7,r_load7,V_bias7,R_load7] = function7_plus(idx,vals);
+% [f8,r_load8,V_bias8,R_load8] = function8_plus(idx,vals);
+% [f9,r_load9,V_bias9,R_load9] = function9_plus(idx,vals);
 toc
 
 % 归一化的方法
