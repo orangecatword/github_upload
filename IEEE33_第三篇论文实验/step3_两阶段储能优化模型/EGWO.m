@@ -19,15 +19,15 @@ p.Skip = 100;
 p.Leap = 10;
 p = scramble(p,'RR2');
 H = net(p,N);
-x1 = limit(1) + (limit(2) - limit(1)) .* H;
+x = limit(1) + (limit(2) - limit(1)) .* H;
 %% ================== 初始化种群 ==================
-x = limit(1) + (limit(2) - limit(1)) .* rand(N, d);
-% 强制每个个体去掉禁止位置外仅选择 3 个非零变量
+%x = limit(1) + (limit(2) - limit(1)) .* rand(N, d);
+
 for i = 1:N
     % all_idx = 1:d;
     % allowed_idx = setdiff(all_idx, forbidden_idx);
     % idx = allowed_idx(randperm(length(allowed_idx), 3));
-    num = randi(5); % 在 1、2、3、4、5 中等概率随机选择一个整数
+    num = randi(size(allowed_idx,2)); % 在 1、2、3、4、5 中等概率随机选择一个整数
     idx = allowed_idx(randperm(length(allowed_idx), num));
     mask = false(1, d);
     mask(idx) = true;
@@ -85,7 +85,7 @@ for iter = 1:Max_iter
             x_t(i,j) = xp(j)-(4*rand-2)*(xp(j)-x(i,j)); % 模拟每只狼的绕圈行为;|r| < 1表示攻击猎物，|r| > 1表示寻找猎物
             if x_t(i,j) > limit(2)
                 x(i,j) = x(i,j)+rand*(limit(2)-x(i,j));
-            elseif x_t(i,j) < limit(1) % limit(1)改为0
+            elseif x_t(i,j) < limit(1)
                 if x_t(i,j) > 0
                 x(i,j) = x(i,j)+rand*(limit(1)-x(i,j));
                 end
@@ -98,7 +98,7 @@ for iter = 1:Max_iter
     %% 改进的矩阵稀疏化，使其可以避免选择分布式电源位置
     for i = 1:N
         [~, idx] = sort(abs(x(i, allowed_idx)), 'descend');
-        num = randi(5);
+        num = randi(size(allowed_idx,2));
         mask = false(1, d);
         mask(allowed_idx(idx(1:num))) = true;
         % ---------- 4. 稀疏化 ----------
